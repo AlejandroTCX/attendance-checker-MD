@@ -1,74 +1,74 @@
-PIN,NAME,Puesto,Departamento,Razón social,Entrada,Salida,Tolerancia,Tiempo de comida
-13,Rojas Salas J. Fernando,Gerente de operaciones,Almacén,Madisa,12:00,20:00,19 min,30 min
-105,Garcia Prado Jose Luis,Aux Mayoreo,Almacén Mayoreo,Madisa,07:00,16:00,19 min,1 hora
-106,Lopez Gonzalez Silvia Y.,Facturación mayoreo,Almacén Mayoreo,Madisa,09:00,17:00,19 min,30 min
-109,Trejo Hurtado Oswaldo,Reparto mayoreo,Almacén Mayoreo,Madisa,07:00,16:00,19 min,1 hora
-110,Garcia Gualajara Jesus A,Jefe de almacen,Almacén,Madisa,07:00,16:00,19 min,1 hora
-152,Torres Lomeli Arturo,Comodín,Ventas,Mariana,07:00,16:00,19 min,1 hora
+PIN,NAME,Puesto,Departamento,Razï¿½n social,Entrada,Salida,Tolerancia,Tiempo de comida
+13,Rojas Salas J. Fernando,Gerente de operaciones,Almacï¿½n,Madisa,12:00,20:00,19 min,30 min
+105,Garcia Prado Jose Luis,Aux Mayoreo,Almacï¿½n Mayoreo,Madisa,07:00,16:00,19 min,1 hora
+106,Lopez Gonzalez Silvia Y.,Facturaciï¿½n mayoreo,Almacï¿½n Mayoreo,Madisa,09:00,17:00,19 min,30 min
+109,Trejo Hurtado Oswaldo,Reparto mayoreo,Almacï¿½n Mayoreo,Madisa,07:00,16:00,19 min,1 hora
+110,Garcia Gualajara Jesus A,Jefe de almacen,Almacï¿½n,Madisa,07:00,16:00,19 min,1 hora
+152,Torres Lomeli Arturo,Comodï¿½n,Ventas,Mariana,07:00,16:00,19 min,1 hora
 170,Gomez Arevalo J. Jesus,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
 173,Ramos Medina Cesar F.,Legal,Legal,Mariana,08:00,16:00,19 min,30 min
-180,Jimenez Castellanos Ivan,Aux Mayoreo,Almacén Mayoreo,Madisa,07:00,16:00,19 min,1 hora
+180,Jimenez Castellanos Ivan,Aux Mayoreo,Almacï¿½n Mayoreo,Madisa,07:00,16:00,19 min,1 hora
 244,Lopez Camarena Ernesto,Sistemas,Sistemas,Mariana,09:00,17:00,19 min,30 min
-397,Tapia Rivera Martin,Embarques ,Almacén/Embarques,Mariana,14:00,21:00,19 min,30 min
-490,Fonseca Muñoz J. Adrian,Embarques ,Almacén/Embarques,Mariana,13:00,21:00,19 min,30 min
-528,Pajarito Calderon Maria,Liquidación,Liquidaciones,Mariana,14:00,21:00,19 min,30 min
-602,Lopez Galvez Marco A,Reparto mayoreo,Almacén Mayoreo,Mariana,07:00,16:00,19 min,1 hora
+397,Tapia Rivera Martin,Embarquesï¿½,Almacï¿½n/Embarques,Mariana,14:00,21:00,19 min,30 min
+490,Fonseca Muï¿½oz J. Adrian,Embarquesï¿½,Almacï¿½n/Embarques,Mariana,13:00,21:00,19 min,30 min
+528,Pajarito Calderon Maria,Liquidaciï¿½n,Liquidaciones,Mariana,14:00,21:00,19 min,30 min
+602,Lopez Galvez Marco A,Reparto mayoreo,Almacï¿½n Mayoreo,Mariana,07:00,16:00,19 min,1 hora
 604,Ramirez Gonzalez Analia,BAJA,BAJA,BAJA,,,,
 933,Lopez Camarena Cristobal,Sistemas,Sistemas,Madisa,08:00,16:00,19 min,30 min
 951,Perez Ibarra Brenda B.,RRHH,RRHH,Mariana,08:00,16:00,19 min,30 min
-1060,Rojo Gonzalez Jose F.,Supervisor Ventas,Ventas,Mariana,07:00,16:00,19 min,1 hora
+1060,Rojo Gonzalez Jose F.,Supervisor Ventas,Ventas,Mariana,07:30,16:00,19 min,1 hora
 1086,Cortes Rico Viridiana,Censos,Censos,Mariana,08:00,16:00,19 min,30 min
 1092,Ayala Becerra Victor H.,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
-1106,Gutierrez Moreno Carlos,Supervisor Ventas,Ventas,Mariana,07:00,16:00,19 min,1 hora
+1106,Gutierrez Moreno Carlos,Supervisor Ventas,Ventas,Mariana,07:30,16:00,19 min,1 hora
 1121,Guzman Vizcarra Luis J.,Supervisor Jr. Reparto,Reparto,Mariana,07:00,17:00,19 min,1 hora
 1155,Gutierrez Topete M. Tere,Censos,Censos,Mariana,08:00,16:00,19 min,30 min
 1158,Moya Sanchez Alejandro,Supervisor Jr. Reparto,Reparto,Mariana,07:00,17:00,19 min,1 hora
-1188,Delgado Gutierrez Karina,Recepción,Recepción,Mariana,08:00,16:00,19 min,30 min
-1450,Cervantes Elisea Marcus,Almacenista,Almacén,Mariana,07:00,16:00,19 min,1 hora
+1188,Delgado Gutierrez Karina,Recepciï¿½n,Recepciï¿½n,Mariana,08:00,16:00,19 min,30 min
+1450,Cervantes Elisea Marcus,Almacenista,Almacï¿½n,Mariana,07:00,16:00,19 min,1 hora
 1519,Meza Contreras Rosaura N,Censos,Censos,Mariana,08:00,16:00,19 min,30 min
 1533,Ocegueda Ventura Jose,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
-1546,Garza Rodriguez Salvador,Embarques ,Almacén/Embarques,Mariana,14:00,21:00,19 min,30 min
+1546,Garza Rodriguez Salvador,Embarquesï¿½,Almacï¿½n/Embarques,Mariana,14:00,21:00,19 min,30 min
 1574,Lopez Lizarraga Carlos I,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
-1599,Lazaro Blanco Jonathan,Almacenista,Almacén,Mariana,07:00,16:00,19 min,1 hora
-1603,Rodriguez Avalos Aldo D,Supervisor Jr. 3PL,Almacén,Mariana,12:00,20:00,19 min,30 min
+1599,Lazaro Blanco Jonathan,Almacenista,Almacï¿½n,Mariana,07:00,16:00,19 min,1 hora
+1603,Rodriguez Avalos Aldo D,Supervisor Jr. 3PL,Almacï¿½n,Mariana,12:00,20:00,19 min,30 min
 1608,Ayala Ramos Ernesto,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
 1645,Vargas Razon Jose M.,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
-1662,Muñoz Chillon Marco A,Comodín,Ventas,Mariana,07:00,16:00,19 min,1 hora
-1665,Castillo Magallanes A.,Embarques ,Almacén/Embarques,Mariana,07:00,16:00,19 min,1 hora
-1683,Mora Sanchez Jose G.,Aux Mayoreo,Almacén Mayoreo,Mariana,07:00,16:00,19 min,1 hora
+1662,Muï¿½oz Chillon Marco A,Comodï¿½n,Ventas,Mariana,07:00,16:00,19 min,1 hora
+1665,Castillo Magallanes A.,Embarquesï¿½,Almacï¿½n/Embarques,Mariana,07:00,16:00,19 min,1 hora
+1683,Mora Sanchez Jose G.,Aux Mayoreo,Almacï¿½n Mayoreo,Mariana,07:00,16:00,19 min,1 hora
 1689,Casas Mercado Felicitas,Call Center,Call Center,Mariana,08:30,15:30,19 min,30 min
 1694,Ramirez Quezada Jorge,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
-1750,Estrada Hernandez Mario,Embarques ,Almacén/Embarques,Mariana,12:00,20:00,19 min,30 min
+1750,Estrada Hernandez Mario,Embarquesï¿½,Almacï¿½n/Embarques,Mariana,12:00,20:00,19 min,30 min
 1777,Martinez Lona Diana,RRHH,RRHH,Madisa,08:00,16:00,19 min,30 min
-1786,Jimenez Gonzalez Jose,Embarques ,Almacén/Embarques,Mariana,12:00,20:00,19 min,30 min
-1809,Gutierrez Ceballos Diego,Almacenista,Almacén,Mariana,12:00,20:00,19 min,30 min
+1786,Jimenez Gonzalez Jose,Embarquesï¿½,Almacï¿½n/Embarques,Mariana,12:00,20:00,19 min,30 min
+1809,Gutierrez Ceballos Diego,Almacenista,Almacï¿½n,Mariana,12:00,20:00,19 min,30 min
 1813,Macias Fierros Victor M.,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
 1816,Garcia de jesus Jose M.,BAJA,BAJA,BAJA,,,,
-1818,Rodriguez Urista Guad.,Embarques ,Almacén/Embarques,Mariana,12:00,20:00,19 min,30 min
-1828,Huerta Valle Vicente A.,Supervisor Jr. Embarques,Almacén/Embarques,Mariana,12:00,20:00,19 min,30 min
+1818,Rodriguez Urista Guad.,Embarquesï¿½,Almacï¿½n/Embarques,Mariana,12:00,20:00,19 min,30 min
+1828,Huerta Valle Vicente A.,Supervisor Jr. Embarques,Almacï¿½n/Embarques,Mariana,12:00,20:00,19 min,30 min
 1836,Lopez Ramirez Jose,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
-1839,Loera Garcia Jorge M.,Gerente Comercial,Ventas,Mariana,07:00,16:00,19 min,1 hora
-1843,Pedro Reyes Ramos,Aux Mayoreo,Almacén mayoreo,Madisa,07:00,16:00,19 min,1 hora
-1844,Kimberly G. Segoviano,Embarques ,Almacén/Embarques,Madisa,12:00,20:00,19 min,30 min
+1839,Loera Garcia Jorge M.,Gerente Comercial,Ventas,Mariana,07:30,16:00,19 min,1 hora
+1843,Pedro Reyes Ramos,Aux Mayoreo,Almacï¿½n mayoreo,Madisa,07:00,16:00,19 min,1 hora
+1844,Kimberly G. Segoviano,Embarquesï¿½,Almacï¿½n/Embarques,Madisa,12:00,20:00,19 min,30 min
 1848,Efrain Garcia Orzuna,BAJA,BAJA,BAJA,12:00,20:00,19 min,30 min
-1850,Evelin C. Razcon,Embarques ,Almacén/Embarques,Madisa,12:00,20:00,19 min,30 min
-1854,Juan Carlos Garcia,Embarques ,Almacén/Embarques,Madisa,12:00,20:00,19 min,30 min
-1856,Roman Axl Lopez,Embarques ,Almacén/Embarques,Madisa,12:00,20:00,19 min,30 min
+1850,Evelin C. Razcon,Embarquesï¿½,Almacï¿½n/Embarques,Madisa,12:00,20:00,19 min,30 min
+1854,Juan Carlos Garcia,Embarquesï¿½,Almacï¿½n/Embarques,Madisa,12:00,20:00,19 min,30 min
+1856,Roman Axl Lopez,Embarquesï¿½,Almacï¿½n/Embarques,Madisa,12:00,20:00,19 min,30 min
 1857,Cobarruvias Alan O.,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
 1859,Navarro Garcia Omar,BAJA,BAJA,BAJA,,,,
-1861,Lopez Quijas Cristina,Embarques ,Almacén/Embarques,Madisa,12:00,20:00,19 min,30 min
+1861,Lopez Quijas Cristina,Embarquesï¿½,Almacï¿½n/Embarques,Madisa,12:00,20:00,19 min,30 min
 1865,Ibarra Leonardo,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
 1866,Perez juan Manuel,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
-1868,Barajas Ledezma Cristian,Almacenista,Almacén,Madisa,07:00,16:00,19 min,1 hora
+1868,Barajas Ledezma Cristian,Almacenista,Almacï¿½n,Madisa,07:00,16:00,19 min,1 hora
 1869,Candelario Juan Carlos,BAJA,BAJA,BAJA,,,,
 1873,Garcia Luis Angel,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
 1875,Mendez Carlos Ivan,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
 1876,Aspe Figueroa Oscar,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
 1877,Rodriguez Gpe. De Jesus,BAJA,BAJA,BAJA,,,,
 1878,Leon Vega Alejandro,Reparto detalle,Reparto,Mariana,07:00,17:00,19 min,1 hora
-1879,Aguilar Roberto Carlos,Almacenista,Almacén,Mariana,07:00,16:00,19 min,1 hora
-1880,Gutierrez Africa M.,Liquidación,Liquidaciones,Mariana,14:00,21:00,19 min,30 min
-1881,mora Aguirre Ramon,Almacenista,Almacén,Mariana,07:00,16:00,19 min,1 hora
-1882,Macias Erick I.,Aux Mayoreo,Almacén Mayoreo,Madisa,07:00,16:00,19 min,1 hora
-1883,Coss Amador Lucia,Embarques ,Almacén/Embarques,Madisa,12:00,20:00,19 min,30 min
+1879,Aguilar Roberto Carlos,Almacenista,Almacï¿½n,Mariana,07:00,16:00,19 min,1 hora
+1880,Gutierrez Africa M.,Liquidaciï¿½n,Liquidaciones,Mariana,14:00,21:00,19 min,30 min
+1881,mora Aguirre Ramon,Almacenista,Almacï¿½n,Mariana,07:00,16:00,19 min,1 hora
+1882,Macias Erick I.,Aux Mayoreo,Almacï¿½n Mayoreo,Madisa,07:00,16:00,19 min,1 hora
+1883,Coss Amador Lucia,Embarquesï¿½,Almacï¿½n/Embarques,Madisa,12:00,20:00,19 min,30 min
 1722,Tolentino Cardenas Alejandro,Analista de Datos,Analista de Datos,Mariana,09:00,17:00,19 min,30 min

@@ -1,7 +1,18 @@
-'use client';
-import { useState, useEffect } from 'react';
-import Papa from 'papaparse';
-import { Calendar, List, Clock, AlertTriangle, CheckCircle, XCircle, Users, Building2, Briefcase, Filter } from 'lucide-react';
+"use client";
+import { useState, useEffect } from "react";
+import Papa from "papaparse";
+import {
+  Calendar,
+  List,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Users,
+  Building2,
+  Briefcase,
+  Filter,
+} from "lucide-react";
 
 interface AttendanceRecord {
   date: string;
@@ -14,11 +25,11 @@ interface PersonRecord {
   NAME: string;
   Puesto: string;
   Departamento: string;
-  'Razón social': string;
+  "Razón social": string;
   Entrada: string;
   Salida: string;
   Tolerancia: string;
-  'Tiempo de comida': string;
+  "Tiempo de comida": string;
 }
 
 interface DayAttendance {
@@ -49,18 +60,21 @@ export default function CalendarPage() {
   const [rawLogs, setRawLogs] = useState<any[]>([]);
   const [pinToInfo, setPinToInfo] = useState<Record<string, PersonInfo>>({});
   const [people, setPeople] = useState<string[]>([]);
-  const [selectedPerson, setSelectedPerson] = useState<string>('');
+  const [selectedPerson, setSelectedPerson] = useState<string>("");
   const [processedByDay, setProcessedByDay] = useState<DayAttendance[]>([]);
-  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('list');
-  const [selectedDepartamento, setSelectedDepartamento] = useState<string>('Todos');
-  const [selectedHorario, setSelectedHorario] = useState<string>('Todos');
-  const [viewType, setViewType] = useState<'individual' | 'department'>('department');
+  const [viewMode, setViewMode] = useState<"calendar" | "list">("list");
+  const [selectedDepartamento, setSelectedDepartamento] =
+    useState<string>("Todos");
+  const [selectedHorario, setSelectedHorario] = useState<string>("Todos");
+  const [viewType, setViewType] = useState<"individual" | "department">(
+    "department"
+  );
 
   function parseLocalTimestamp(ts: string): Date {
-    const clean = ts.replace('T', ' ').replace('Z', '');
-    const [datePart, timePart] = clean.split(' ');
-    const [y, m, d] = datePart.split('-').map(Number);
-    const [hh, mm, ss] = timePart.split(':').map(Number);
+    const clean = ts.replace("T", " ").replace("Z", "");
+    const [datePart, timePart] = clean.split(" ");
+    const [y, m, d] = datePart.split("-").map(Number);
+    const [hh, mm, ss] = timePart.split(":").map(Number);
     return new Date(y, m - 1, d, hh, mm, ss || 0);
   }
 
@@ -77,13 +91,13 @@ export default function CalendarPage() {
 
   function getLocalDateString(date: Date) {
     const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
 
   function parseTimeToMinutes(timeStr: string): number {
-    const [hh, mm] = timeStr.split(':').map(Number);
+    const [hh, mm] = timeStr.split(":").map(Number);
     return hh * 60 + mm;
   }
 
@@ -92,12 +106,15 @@ export default function CalendarPage() {
     return match ? parseInt(match[1]) : 19;
   }
 
-  function processDayRecords(timestamps: string[], personInfo: PersonInfo): DayAttendance {
+  function processDayRecords(
+    timestamps: string[],
+    personInfo: PersonInfo
+  ): DayAttendance {
     const ENTRY_TIME = parseTimeToMinutes(personInfo.horarioEntrada);
     const TOLERANCE = personInfo.tolerancia;
 
     const sorted = timestamps
-      .map(t => parseLocalTimestamp(t))
+      .map((t) => parseLocalTimestamp(t))
       .sort((a, b) => a.getTime() - b.getTime());
 
     const entry = sorted[0];
@@ -118,8 +135,8 @@ export default function CalendarPage() {
       date: getLocalDateString(entry),
       name: personInfo.name,
       puesto: personInfo.puesto,
-      entry: entry.toLocaleTimeString('es-MX', { hour12: false }),
-      exit: exit?.toLocaleTimeString('es-MX', { hour12: false }),
+      entry: entry.toLocaleTimeString("es-MX", { hour12: false }),
+      exit: exit?.toLocaleTimeString("es-MX", { hour12: false }),
       isLate,
       wtf,
       scheduledEntry: personInfo.horarioEntrada,
@@ -129,56 +146,83 @@ export default function CalendarPage() {
 
   useEffect(() => {
     const load = async () => {
-      const peopleCsv = await fetch('/data/Checador horarios.csv').then(r => r.text());
+      const peopleCsv = await fetch("/data/Checador horarios.csv").then((r) =>
+        r.text()
+      );
       const peopleData = await parseCSV<PersonRecord>(peopleCsv);
 
       const map: Record<string, PersonInfo> = {};
-      peopleData.forEach(p => {
+      peopleData.forEach((p) => {
         if (p.PIN && p.NAME) {
           map[p.PIN.trim()] = {
             name: p.NAME.trim(),
-            puesto: p.Puesto?.trim() || 'N/A',
-            departamento: p.Departamento?.trim() || 'N/A',
-            razonSocial: p['Razón social']?.trim() || 'N/A',
-            horarioEntrada: p.Entrada?.trim() || '09:00',
-            horarioSalida: p.Salida?.trim() || '18:00',
-            tolerancia: parseTolerancia(p.Tolerancia || '19 min'),
-            tiempoComida: p['Tiempo de comida']?.trim() || 'N/A',
+            puesto: p.Puesto?.trim() || "N/A",
+            departamento: p.Departamento?.trim() || "N/A",
+            razonSocial: p["Razón social"]?.trim() || "N/A",
+            horarioEntrada: p.Entrada?.trim() || "09:00",
+            horarioSalida: p.Salida?.trim() || "18:00",
+            tolerancia: parseTolerancia(p.Tolerancia || "19 min"),
+            tiempoComida: p["Tiempo de comida"]?.trim() || "N/A",
           };
         }
       });
 
-      const logCsv = await fetch('/data/attendance_log_simple.csv').then(r => r.text());
-      const logData = await parseCSV<any>(logCsv);
+      const res = await fetch(`/api/attendanceLog?month=${filterMonth}`);
+      const api = await res.json();
 
-      const normalized: AttendanceRecord[] = logData.map(r => {
-        const pin = String(r.pin || r.PIN || '').trim();
-        const ts = r.timestamp || r.Timestamp;
-        if (!pin || !ts) return null;
-        return {
-          pin,
-          name: map[pin]?.name ?? 'Desconocido',
-          date: getLocalDateString(new Date(ts)),
-        };
-      }).filter(Boolean) as AttendanceRecord[];
+      if (!res.ok) {
+        console.error("attendanceLog API error:", api);
+        throw new Error(api?.error || "Error cargando attendanceLog");
+      }
+
+      // Normalizamos para que tu código siga usando r.pin y r.timestamp
+      const logData = (api.checadas || []).map((x: any) => ({
+        pin: String(x.pin),
+        timestamp: x.timestamp_utc, // <- viene de Supabase
+      }));
+
+      const normalized: AttendanceRecord[] = logData
+        .map((r: any) => {
+          const pin = String(r.pin || "").trim();
+          const ts = r.timestamp; // <- ya normalizado
+          if (!pin || !ts) return null;
+          return {
+            pin,
+            name: map[pin]?.name ?? "Desconocido",
+            date: getLocalDateString(parseLocalTimestamp(ts)),
+          };
+        })
+        .filter(Boolean) as AttendanceRecord[];
 
       setPinToInfo(map);
       setRawLogs(logData);
       setRecords(normalized);
 
-      const unique = [...new Set(normalized.map(r => r.name).filter(n => n !== 'Desconocido'))];
+      const unique = [
+        ...new Set(
+          normalized.map((r) => r.name).filter((n) => n !== "Desconocido")
+        ),
+      ];
       setPeople(unique);
-      setSelectedPerson(unique[0] || '');
+      setSelectedPerson(unique[0] || "");
     };
 
     load();
   }, []);
 
+  const [filterMonth, setFilterMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}`;
+  });
+
   useEffect(() => {
-    if (viewType === 'individual' && selectedPerson) {
+    if (viewType === "individual" && selectedPerson) {
       // Individual person view
       const personPin = Object.keys(pinToInfo).find(
-        pin => pinToInfo[pin].name === selectedPerson
+        (pin) => pinToInfo[pin].name === selectedPerson
       );
       const personInfo = personPin ? pinToInfo[personPin] : undefined;
 
@@ -186,8 +230,8 @@ export default function CalendarPage() {
 
       const grouped: Record<string, string[]> = {};
 
-      rawLogs.forEach(r => {
-        const pin = String(r.pin || r.PIN || '').trim();
+      rawLogs.forEach((r) => {
+        const pin = String(r.pin || r.PIN || "").trim();
         const ts = r.timestamp || r.Timestamp;
         if (!pin || !ts) return;
         if (pinToInfo[pin]?.name !== selectedPerson) return;
@@ -199,26 +243,33 @@ export default function CalendarPage() {
       });
 
       setProcessedByDay(
-        Object.values(grouped).map(timestamps => processDayRecords(timestamps, personInfo))
+        Object.values(grouped).map((timestamps) =>
+          processDayRecords(timestamps, personInfo)
+        )
       );
     } else {
       // Department view - all people in selected department and schedule
       const allRecords: DayAttendance[] = [];
 
-      Object.keys(pinToInfo).forEach(pin => {
+      Object.keys(pinToInfo).forEach((pin) => {
         const personInfo = pinToInfo[pin];
-        
+
         // Apply filters
-        const matchDept = selectedDepartamento === 'Todos' || personInfo.departamento === selectedDepartamento;
-        const matchSchedule = selectedHorario === 'Todos' || `${personInfo.horarioEntrada} - ${personInfo.horarioSalida}` === selectedHorario;
-        
+        const matchDept =
+          selectedDepartamento === "Todos" ||
+          personInfo.departamento === selectedDepartamento;
+        const matchSchedule =
+          selectedHorario === "Todos" ||
+          `${personInfo.horarioEntrada} - ${personInfo.horarioSalida}` ===
+            selectedHorario;
+
         if (!matchDept || !matchSchedule) return;
 
         // Group timestamps for this person
         const grouped: Record<string, string[]> = {};
 
-        rawLogs.forEach(r => {
-          const logPin = String(r.pin || r.PIN || '').trim();
+        rawLogs.forEach((r) => {
+          const logPin = String(r.pin || r.PIN || "").trim();
           const ts = r.timestamp || r.Timestamp;
           if (!logPin || !ts) return;
           if (logPin !== pin) return;
@@ -230,7 +281,7 @@ export default function CalendarPage() {
         });
 
         // Process records for this person
-        Object.values(grouped).forEach(timestamps => {
+        Object.values(grouped).forEach((timestamps) => {
           allRecords.push(processDayRecords(timestamps, personInfo));
         });
       });
@@ -244,43 +295,62 @@ export default function CalendarPage() {
 
       setProcessedByDay(allRecords);
     }
-  }, [selectedPerson, rawLogs, pinToInfo, viewType, selectedDepartamento, selectedHorario]);
+  }, [
+    selectedPerson,
+    rawLogs,
+    pinToInfo,
+    viewType,
+    selectedDepartamento,
+    selectedHorario,
+  ]);
 
-  const [filterMonth, setFilterMonth] = useState(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
-
-  const filteredByMonth = processedByDay.filter(d =>
+  const filteredByMonth = processedByDay.filter((d) =>
     d.date.startsWith(filterMonth)
   );
 
   const stats = {
     total: filteredByMonth.length,
-    onTime: filteredByMonth.filter(d => !d.isLate).length,
-    late: filteredByMonth.filter(d => d.isLate).length,
-    alerts: filteredByMonth.filter(d => d.wtf).length,
+    onTime: filteredByMonth.filter((d) => !d.isLate).length,
+    late: filteredByMonth.filter((d) => d.isLate).length,
+    alerts: filteredByMonth.filter((d) => d.wtf).length,
   };
 
   // Get unique departments and schedules
-  const departamentos = ['Todos', ...new Set(Object.values(pinToInfo).map(p => p.departamento))];
-  const horarios = ['Todos', ...new Set(Object.values(pinToInfo).map(p => `${p.horarioEntrada} - ${p.horarioSalida}`))];
+  const departamentos = [
+    "Todos",
+    ...new Set(Object.values(pinToInfo).map((p) => p.departamento)),
+  ];
+  const horarios = [
+    "Todos",
+    ...new Set(
+      Object.values(pinToInfo).map(
+        (p) => `${p.horarioEntrada} - ${p.horarioSalida}`
+      )
+    ),
+  ];
 
   // Filter people by department and schedule
-  const filteredPeople = people.filter(personName => {
-    const personPin = Object.keys(pinToInfo).find(pin => pinToInfo[pin].name === personName);
+  const filteredPeople = people.filter((personName) => {
+    const personPin = Object.keys(pinToInfo).find(
+      (pin) => pinToInfo[pin].name === personName
+    );
     if (!personPin) return false;
-    
+
     const info = pinToInfo[personPin];
-    const matchDept = selectedDepartamento === 'Todos' || info.departamento === selectedDepartamento;
-    const matchSchedule = selectedHorario === 'Todos' || `${info.horarioEntrada} - ${info.horarioSalida}` === selectedHorario;
-    
+    const matchDept =
+      selectedDepartamento === "Todos" ||
+      info.departamento === selectedDepartamento;
+    const matchSchedule =
+      selectedHorario === "Todos" ||
+      `${info.horarioEntrada} - ${info.horarioSalida}` === selectedHorario;
+
     return matchDept && matchSchedule;
   });
 
-  const currentPersonInfo = viewType === 'individual' 
-    ? Object.values(pinToInfo).find(p => p.name === selectedPerson)
-    : undefined;
+  const currentPersonInfo =
+    viewType === "individual"
+      ? Object.values(pinToInfo).find((p) => p.name === selectedPerson)
+      : undefined;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
@@ -290,7 +360,9 @@ export default function CalendarPage() {
           <h1 className="text-4xl font-bold text-white mb-2">
             Mariana Distribuciones
           </h1>
-          <p className="text-slate-400">Monitoreo y control de entradas y salidas</p>
+          <p className="text-slate-400">
+            Monitoreo y control de entradas y salidas
+          </p>
         </div>
 
         {/* View Type Toggle */}
@@ -300,22 +372,22 @@ export default function CalendarPage() {
             <span className="text-slate-300 font-medium">Tipo de Vista:</span>
             <div className="flex gap-2">
               <button
-                onClick={() => setViewType('department')}
+                onClick={() => setViewType("department")}
                 className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
-                  viewType === 'department'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-slate-900 text-slate-400 hover:bg-slate-700'
+                  viewType === "department"
+                    ? "bg-red-600 text-white"
+                    : "bg-slate-900 text-slate-400 hover:bg-slate-700"
                 }`}
               >
                 <Building2 size={18} />
                 Por Departamento
               </button>
               <button
-                onClick={() => setViewType('individual')}
+                onClick={() => setViewType("individual")}
                 className={`px-4 py-2 rounded-lg transition-all flex items-center gap-2 ${
-                  viewType === 'individual'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-slate-900 text-slate-400 hover:bg-slate-700'
+                  viewType === "individual"
+                    ? "bg-red-600 text-white"
+                    : "bg-slate-900 text-slate-400 hover:bg-slate-700"
                 }`}
               >
                 <Users size={18} />
@@ -333,10 +405,12 @@ export default function CalendarPage() {
               </label>
               <select
                 value={selectedDepartamento}
-                onChange={e => setSelectedDepartamento(e.target.value)}
+                onChange={(e) => setSelectedDepartamento(e.target.value)}
                 className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
               >
-                {departamentos.map(d => <option key={d}>{d}</option>)}
+                {departamentos.map((d) => (
+                  <option key={d}>{d}</option>
+                ))}
               </select>
             </div>
 
@@ -348,15 +422,17 @@ export default function CalendarPage() {
               </label>
               <select
                 value={selectedHorario}
-                onChange={e => setSelectedHorario(e.target.value)}
+                onChange={(e) => setSelectedHorario(e.target.value)}
                 className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
               >
-                {horarios.map(h => <option key={h}>{h}</option>)}
+                {horarios.map((h) => (
+                  <option key={h}>{h}</option>
+                ))}
               </select>
             </div>
 
             {/* Person Selector - Only visible in individual view */}
-            {viewType === 'individual' && (
+            {viewType === "individual" && (
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
                   <Users size={16} />
@@ -364,10 +440,12 @@ export default function CalendarPage() {
                 </label>
                 <select
                   value={selectedPerson}
-                  onChange={e => setSelectedPerson(e.target.value)}
+                  onChange={(e) => setSelectedPerson(e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
                 >
-                  {filteredPeople.map(p => <option key={p}>{p}</option>)}
+                  {filteredPeople.map((p) => (
+                    <option key={p}>{p}</option>
+                  ))}
                 </select>
               </div>
             )}
@@ -381,7 +459,7 @@ export default function CalendarPage() {
               <input
                 type="month"
                 value={filterMonth}
-                onChange={e => setFilterMonth(e.target.value)}
+                onChange={(e) => setFilterMonth(e.target.value)}
                 className="w-full px-4 py-2.5 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
               />
             </div>
@@ -389,37 +467,51 @@ export default function CalendarPage() {
         </div>
 
         {/* Employee Info Card - Only for individual view */}
-        {viewType === 'individual' && currentPersonInfo && (
+        {viewType === "individual" && currentPersonInfo && (
           <div className="bg-gradient-to-r from-slate-800/50 to-slate-800/30 backdrop-blur-sm rounded-2xl border border-slate-700 p-6 mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <div>
                 <p className="text-slate-400 text-sm mb-1">Empleado</p>
-                <p className="text-white font-semibold">{currentPersonInfo.name}</p>
+                <p className="text-white font-semibold">
+                  {currentPersonInfo.name}
+                </p>
               </div>
               <div>
                 <p className="text-slate-400 text-sm mb-1 flex items-center gap-1">
                   <Briefcase size={14} />
                   Puesto
                 </p>
-                <p className="text-white font-medium">{currentPersonInfo.puesto}</p>
+                <p className="text-white font-medium">
+                  {currentPersonInfo.puesto}
+                </p>
               </div>
               <div>
                 <p className="text-slate-400 text-sm mb-1 flex items-center gap-1">
                   <Building2 size={14} />
                   Departamento
                 </p>
-                <p className="text-white font-medium">{currentPersonInfo.departamento}</p>
+                <p className="text-white font-medium">
+                  {currentPersonInfo.departamento}
+                </p>
               </div>
               <div>
                 <p className="text-slate-400 text-sm mb-1 flex items-center gap-1">
                   <Clock size={14} />
                   Horario
                 </p>
-                <p className="text-white font-medium">{currentPersonInfo.horarioEntrada} - {currentPersonInfo.horarioSalida}</p>
+                <p className="text-white font-medium">
+                  {currentPersonInfo.horarioEntrada} -{" "}
+                  {currentPersonInfo.horarioSalida}
+                </p>
               </div>
               <div>
-                <p className="text-slate-400 text-sm mb-1">Tolerancia / Comida</p>
-                <p className="text-white font-medium">{currentPersonInfo.tolerancia} min / {currentPersonInfo.tiempoComida}</p>
+                <p className="text-slate-400 text-sm mb-1">
+                  Tolerancia / Comida
+                </p>
+                <p className="text-white font-medium">
+                  {currentPersonInfo.tolerancia} min /{" "}
+                  {currentPersonInfo.tiempoComida}
+                </p>
               </div>
             </div>
           </div>
@@ -443,7 +535,9 @@ export default function CalendarPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm mb-1">A Tiempo</p>
-                <p className="text-3xl font-bold text-emerald-400">{stats.onTime}</p>
+                <p className="text-3xl font-bold text-emerald-400">
+                  {stats.onTime}
+                </p>
               </div>
               <div className="p-3 bg-emerald-700/20 rounded-lg">
                 <CheckCircle className="text-emerald-400" size={24} />
@@ -455,7 +549,9 @@ export default function CalendarPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm mb-1">Retardos</p>
-                <p className="text-3xl font-bold text-yellow-400">{stats.late}</p>
+                <p className="text-3xl font-bold text-yellow-400">
+                  {stats.late}
+                </p>
               </div>
               <div className="p-3 bg-yellow-700/20 rounded-lg">
                 <Clock className="text-yellow-400" size={24} />
@@ -467,7 +563,9 @@ export default function CalendarPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm mb-1">Alertas</p>
-                <p className="text-3xl font-bold text-red-400">{stats.alerts}</p>
+                <p className="text-3xl font-bold text-red-400">
+                  {stats.alerts}
+                </p>
               </div>
               <div className="p-3 bg-red-700/20 rounded-lg">
                 <AlertTriangle className="text-red-400" size={24} />
@@ -477,12 +575,16 @@ export default function CalendarPage() {
         </div>
 
         {/* List View */}
-        {viewMode === 'list' && (
+        {viewMode === "list" && (
           <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 overflow-hidden shadow-2xl">
             {/* Table Header */}
-            <div className={`grid ${viewType === 'department' ? 'grid-cols-9' : 'grid-cols-7'} px-6 py-4 bg-slate-900/80 text-sm font-semibold text-slate-300 uppercase tracking-wider border-b border-slate-700`}>
+            <div
+              className={`grid ${
+                viewType === "department" ? "grid-cols-9" : "grid-cols-7"
+              } px-6 py-4 bg-slate-900/80 text-sm font-semibold text-slate-300 uppercase tracking-wider border-b border-slate-700`}
+            >
               <span>Fecha</span>
-              {viewType === 'department' && (
+              {viewType === "department" && (
                 <>
                   <span>Nombre</span>
                   <span>Puesto</span>
@@ -509,18 +611,23 @@ export default function CalendarPage() {
                 return (
                   <div
                     key={`${d.date}-${d.name}-${idx}`}
-                    className={`grid ${viewType === 'department' ? 'grid-cols-9' : 'grid-cols-7'} px-6 py-4 text-white text-sm border-b border-slate-800 hover:bg-slate-700/30 transition-colors`}
+                    className={`grid ${
+                      viewType === "department" ? "grid-cols-9" : "grid-cols-7"
+                    } px-6 py-4 text-white text-sm border-b border-slate-800 hover:bg-slate-700/30 transition-colors`}
                   >
                     {/* Fecha */}
                     <span className="font-medium text-slate-200">
-                      {new Date(d.date + 'T12:00:00').toLocaleDateString('es-MX', {
-                        day: '2-digit',
-                        month: 'short',
-                      })}
+                      {new Date(d.date + "T12:00:00").toLocaleDateString(
+                        "es-MX",
+                        {
+                          day: "2-digit",
+                          month: "short",
+                        }
+                      )}
                     </span>
 
                     {/* Nombre y Puesto - Solo en vista de departamento */}
-                    {viewType === 'department' && (
+                    {viewType === "department" && (
                       <>
                         <span className="font-semibold text-white">
                           {d.name}
@@ -533,22 +640,22 @@ export default function CalendarPage() {
 
                     {/* Entrada Real */}
                     <span className="font-mono text-emerald-400">
-                      {d.entry ?? '—'}
+                      {d.entry ?? "—"}
                     </span>
 
                     {/* Entrada Programada */}
                     <span className="font-mono text-slate-400">
-                      {d.scheduledEntry ?? '—'}
+                      {d.scheduledEntry ?? "—"}
                     </span>
 
                     {/* Salida Real */}
                     <span className="font-mono text-blue-400">
-                      {d.exit ?? '—'}
+                      {d.exit ?? "—"}
                     </span>
 
                     {/* Salida Programada */}
                     <span className="font-mono text-slate-400">
-                      {d.scheduledExit ?? '—'}
+                      {d.scheduledExit ?? "—"}
                     </span>
 
                     {/* Estado */}
@@ -556,12 +663,16 @@ export default function CalendarPage() {
                       {d.isLate ? (
                         <>
                           <Clock className="text-yellow-400" size={16} />
-                          <span className="text-yellow-400 font-semibold">Retardo</span>
+                          <span className="text-yellow-400 font-semibold">
+                            Retardo
+                          </span>
                         </>
                       ) : (
                         <>
                           <CheckCircle className="text-emerald-400" size={16} />
-                          <span className="text-emerald-400 font-semibold">A tiempo</span>
+                          <span className="text-emerald-400 font-semibold">
+                            A tiempo
+                          </span>
                         </>
                       )}
                     </div>
@@ -571,7 +682,9 @@ export default function CalendarPage() {
                       {d.wtf && (
                         <div className="flex items-center gap-1 px-3 py-1 bg-red-900/30 border border-red-700 rounded-full">
                           <AlertTriangle className="text-red-400" size={14} />
-                          <span className="text-red-400 text-xs font-bold">Múltiples</span>
+                          <span className="text-red-400 text-xs font-bold">
+                            Múltiples
+                          </span>
                         </div>
                       )}
                     </div>

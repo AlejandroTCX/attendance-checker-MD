@@ -1,0 +1,135 @@
+.runner-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.runner-card {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 20px;
+  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+.runner-track {
+  width: 180px;
+  height: 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+.runner {
+  position: absolute;
+  left: 60px;
+  bottom: 10px;
+  width: 40px;
+  height: 60px;
+  animation: bounce 0.6s infinite ease-in-out;
+}
+
+/* Cuerpo */
+.runner .head {
+  width: 14px;
+  height: 14px;
+  background: #e5e7eb;
+  border-radius: 50%;
+  position: absolute;
+  top: 0;
+  left: 13px;
+}
+
+.runner .body {
+  width: 6px;
+  height: 20px;
+  background: #e5e7eb;
+  position: absolute;
+  top: 14px;
+  left: 17px;
+}
+
+/* Piernas */
+.runner .leg {
+  width: 5px;
+  height: 18px;
+  background: #e5e7eb;
+  position: absolute;
+  top: 34px;
+  transform-origin: top center;
+}
+
+.runner .leg.left {
+  left: 13px;
+  animation: leg-left 0.4s infinite ease-in-out;
+}
+
+.runner .leg.right {
+  left: 22px;
+  animation: leg-right 0.4s infinite ease-in-out;
+}
+
+/* Brazos */
+.runner .arm {
+  width: 4px;
+  height: 14px;
+  background: #e5e7eb;
+  position: absolute;
+  top: 18px;
+  transform-origin: top center;
+}
+
+.runner .arm.left {
+  left: 9px;
+  animation: arm-left 0.4s infinite ease-in-out;
+}
+
+.runner .arm.right {
+  left: 25px;
+  animation: arm-right 0.4s infinite ease-in-out;
+}
+
+/* Texto */
+.runner-text {
+  color: #e5e7eb;
+  font-size: 14px;
+  letter-spacing: 0.05em;
+}
+
+/* Animaciones */
+@keyframes leg-left {
+  0% { transform: rotate(30deg); }
+  50% { transform: rotate(-30deg); }
+  100% { transform: rotate(30deg); }
+}
+
+@keyframes leg-right {
+  0% { transform: rotate(-30deg); }
+  50% { transform: rotate(30deg); }
+  100% { transform: rotate(-30deg); }
+}
+
+@keyframes arm-left {
+  0% { transform: rotate(-25deg); }
+  50% { transform: rotate(25deg); }
+  100% { transform: rotate(-25deg); }
+}
+
+@keyframes arm-right {
+  0% { transform: rotate(25deg); }
+  50% { transform: rotate(-25deg); }
+  100% { transform: rotate(25deg); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}

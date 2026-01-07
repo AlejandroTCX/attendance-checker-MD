@@ -1,12 +1,12 @@
-'use client';
-import { useState, useEffect } from 'react';
-import Papa from 'papaparse';
-import { 
-  Users, 
-  TrendingUp, 
-  TrendingDown, 
-  Clock, 
-  AlertTriangle, 
+"use client";
+import { useState, useEffect } from "react";
+import Papa from "papaparse";
+import {
+  Users,
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  AlertTriangle,
   CheckCircle,
   Building2,
   Calendar,
@@ -14,21 +14,36 @@ import {
   PieChart,
   ArrowRight,
   FileText,
-  Settings
-} from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart as RePieChart, Pie, Cell } from 'recharts';
-import React from 'react';
+  Settings,
+  ArrowLeft,
+  UserCog,
+} from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart as RePieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import React from "react";
+import LogoLoader from "@/components/ui/logoLoader";
 
 interface PersonRecord {
   PIN: string;
   NAME: string;
   Puesto: string;
   Departamento: string;
-  'Razón social': string;
+  "Razón social": string;
   Entrada: string;
   Salida: string;
   Tolerancia: string;
-  'Tiempo de comida': string;
+  "Tiempo de comida": string;
 }
 
 interface PersonInfo {
@@ -51,14 +66,17 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}`;
   });
 
   function parseLocalTimestamp(ts: string): Date {
-    const clean = ts.replace('T', ' ').replace('Z', '');
-    const [datePart, timePart] = clean.split(' ');
-    const [y, m, d] = datePart.split('-').map(Number);
-    const [hh, mm, ss] = timePart.split(':').map(Number);
+    const clean = ts.replace("T", " ").replace("Z", "");
+    const [datePart, timePart] = clean.split(" ");
+    const [y, m, d] = datePart.split("-").map(Number);
+    const [hh, mm, ss] = timePart.split(":").map(Number);
     return new Date(y, m - 1, d, hh, mm, ss || 0);
   }
 
@@ -79,50 +97,56 @@ export default function Dashboard() {
   }
 
   function parseTimeToMinutes(timeStr: string): number {
-    const [hh, mm] = timeStr.split(':').map(Number);
+    const [hh, mm] = timeStr.split(":").map(Number);
     return hh * 60 + mm;
   }
 
   function getLocalDateString(date: Date) {
     const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
 
   useEffect(() => {
     const load = async () => {
       try {
-        const peopleCsv = await fetch('/data/Checador horarios.csv').then(r => r.text());
+        const peopleCsv = await fetch("/data/Checador horarios.csv").then((r) =>
+          r.text()
+        );
         const peopleData = await parseCSV<PersonRecord>(peopleCsv);
 
         const map: Record<string, PersonInfo> = {};
-        peopleData.forEach(p => {
+        peopleData.forEach((p) => {
           if (p.PIN && p.NAME) {
             map[p.PIN.trim()] = {
               name: p.NAME.trim(),
-              puesto: p.Puesto?.trim() || 'N/A',
-              departamento: p.Departamento?.trim() || 'N/A',
-              horarioEntrada: p.Entrada?.trim() || '09:00',
-              horarioSalida: p.Salida?.trim() || '18:00',
-              tolerancia: parseTolerancia(p.Tolerancia || '19 min'),
+              puesto: p.Puesto?.trim() || "N/A",
+              departamento: p.Departamento?.trim() || "N/A",
+              horarioEntrada: p.Entrada?.trim() || "09:00",
+              horarioSalida: p.Salida?.trim() || "18:00",
+              tolerancia: parseTolerancia(p.Tolerancia || "19 min"),
             };
           }
         });
 
-        const logCsv = await fetch('/data/attendance_log_simple.csv').then(r => r.text());
+        const logCsv = await fetch("/data/attendance_log_simple.csv").then(
+          (r) => r.text()
+        );
         const logData = await parseCSV<any>(logCsv);
 
-        const logs: AttendanceLog[] = logData.map(r => ({
-          pin: String(r.pin || r.PIN || '').trim(),
-          timestamp: r.timestamp || r.Timestamp,
-        })).filter(l => l.pin && l.timestamp);
+        const logs: AttendanceLog[] = logData
+          .map((r) => ({
+            pin: String(r.pin || r.PIN || "").trim(),
+            timestamp: r.timestamp || r.Timestamp,
+          }))
+          .filter((l) => l.pin && l.timestamp);
 
         setPinToInfo(map);
         setRawLogs(logs);
         setLoading(false);
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error("Error loading data:", error);
         setLoading(false);
       }
     };
@@ -130,24 +154,22 @@ export default function Dashboard() {
     load();
   }, []);
 
-  // Calculate statistics
   const stats = React.useMemo(() => {
     if (loading) return null;
 
-    const filteredLogs = rawLogs.filter(log => {
+    const filteredLogs = rawLogs.filter((log) => {
       const date = getLocalDateString(parseLocalTimestamp(log.timestamp));
       return date.startsWith(selectedMonth);
     });
 
-    // Group by person and date
     const personDays: Record<string, Record<string, string[]>> = {};
-    
-    filteredLogs.forEach(log => {
+
+    filteredLogs.forEach((log) => {
       const personInfo = pinToInfo[log.pin];
       if (!personInfo) return;
 
       const date = getLocalDateString(parseLocalTimestamp(log.timestamp));
-      
+
       if (!personDays[log.pin]) personDays[log.pin] = {};
       if (!personDays[log.pin][date]) personDays[log.pin][date] = [];
       personDays[log.pin][date].push(log.timestamp);
@@ -158,9 +180,12 @@ export default function Dashboard() {
     let lateDays = 0;
     let multipleEntries = 0;
 
-    const departmentStats: Record<string, { total: number; onTime: number; late: number }> = {};
+    const departmentStats: Record<
+      string,
+      { total: number; onTime: number; late: number }
+    > = {};
 
-    Object.keys(personDays).forEach(pin => {
+    Object.keys(personDays).forEach((pin) => {
       const personInfo = pinToInfo[pin];
       if (!personInfo) return;
 
@@ -169,12 +194,12 @@ export default function Dashboard() {
         departmentStats[dept] = { total: 0, onTime: 0, late: 0 };
       }
 
-      Object.values(personDays[pin]).forEach(timestamps => {
+      Object.values(personDays[pin]).forEach((timestamps) => {
         totalDays++;
         departmentStats[dept].total++;
 
         const sorted = timestamps
-          .map(t => parseLocalTimestamp(t))
+          .map((t) => parseLocalTimestamp(t))
           .sort((a, b) => a.getTime() - b.getTime());
 
         const entry = sorted[0];
@@ -197,18 +222,20 @@ export default function Dashboard() {
     });
 
     const uniquePeople = new Set(Object.keys(personDays)).size;
-    const punctualityRate = totalDays > 0 ? ((onTimeDays / totalDays) * 100).toFixed(1) : '0';
+    const punctualityRate =
+      totalDays > 0 ? ((onTimeDays / totalDays) * 100).toFixed(1) : "0";
 
-    // Department data for charts
-    const deptChartData = Object.entries(departmentStats).map(([dept, stats]) => ({
-      departamento: dept,
-      'A Tiempo': stats.onTime,
-      'Retardos': stats.late,
-    }));
+    const deptChartData = Object.entries(departmentStats).map(
+      ([dept, stats]) => ({
+        departamento: dept.length > 15 ? dept.substring(0, 12) + "..." : dept,
+        "A Tiempo": stats.onTime,
+        Retardos: stats.late,
+      })
+    );
 
     const pieData = [
-      { name: 'A Tiempo', value: onTimeDays, color: '#34d399' },
-      { name: 'Retardos', value: lateDays, color: '#fbbf24' },
+      { name: "A Tiempo", value: onTimeDays, color: "#ffffff" },
+      { name: "Retardos", value: lateDays, color: "#ef4444" },
     ];
 
     return {
@@ -225,227 +252,291 @@ export default function Dashboard() {
   }, [rawLogs, pinToInfo, selectedMonth, loading]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
-        <div className="text-white text-xl">Cargando datos...</div>
-      </div>
-    );
+    return <LogoLoader label="Cargando dashboard..." />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-black via-neutral-950 to-black">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">
-            Dashboard de Asistencia
-          </h1>
-          <p className="text-slate-400">Estadísticas generales del sistema</p>
+        <div className="mb-6 lg:mb-8">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-3 bg-gradient-to-br from-red-600 to-red-700 rounded-xl shadow-lg">
+              <BarChart3 className="text-white" size={28} />
+            </div>
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-white">
+                Dashboard
+              </h1>
+              <p className="text-neutral-400 text-sm sm:text-base">
+                Estadísticas generales del sistema
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Navigation Carousel */}
-        <div className="flex items-center gap-3 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-          <a 
-            href="/calendar"
-            className="group flex items-center gap-3 px-5 py-3 bg-white/[0.03] backdrop-blur-xl rounded-full border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-300 cursor-pointer whitespace-nowrap"
-          >
-            <div className="w-8 h-8 bg-red-500/10 rounded-full flex items-center justify-center group-hover:bg-red-500/20 transition-all duration-300">
-              <Calendar className="text-red-400" size={16} strokeWidth={2} />
-            </div>
-            <span className="text-sm font-medium text-white/90 group-hover:text-white transition-colors">
-              Calendario
-            </span>
-            <ArrowRight className="text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all duration-300" size={14} strokeWidth={2} />
-          </a>
+        {/* Navigation Pills */}
+        <div className="mb-6 lg:mb-8">
+          <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-hide snap-x snap-mandatory">
+            <a
+              href="/calendar"
+              className="group flex items-center gap-2.5 px-4 py-2.5 bg-neutral-900/80 backdrop-blur-sm rounded-xl border border-neutral-800 hover:bg-neutral-800 hover:border-red-600/50 transition-all shadow-lg whitespace-nowrap snap-start flex-shrink-0"
+            >
+              <div className="w-8 h-8 bg-red-600/20 rounded-lg flex items-center justify-center group-hover:bg-red-600/30 transition-all">
+                <Calendar className="text-red-500" size={18} />
+              </div>
+              <span className="text-sm font-medium text-neutral-200 group-hover:text-white">
+                Calendario
+              </span>
+              <ArrowRight
+                className="text-neutral-500 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all"
+                size={16}
+              />
+            </a>
 
-          <a 
-            href="/reports"
-            className="group flex items-center gap-3 px-5 py-3 bg-white/[0.03] backdrop-blur-xl rounded-full border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-300 cursor-pointer whitespace-nowrap"
-          >
-            <div className="w-8 h-8 bg-blue-500/10 rounded-full flex items-center justify-center group-hover:bg-blue-500/20 transition-all duration-300">
-              <FileText className="text-blue-400" size={16} strokeWidth={2} />
-            </div>
-            <span className="text-sm font-medium text-white/90 group-hover:text-white transition-colors">
-              Reportes
-            </span>
-            <ArrowRight className="text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all duration-300" size={14} strokeWidth={2} />
-          </a>
+            <a
+              href="/personal"
+              className="group flex items-center gap-2.5 px-4 py-2.5 bg-neutral-900/80 backdrop-blur-sm rounded-xl border border-neutral-800 hover:bg-neutral-800 hover:border-red-600/50 transition-all shadow-lg whitespace-nowrap snap-start flex-shrink-0"
+            >
+              <div className="w-8 h-8 bg-red-600/20 rounded-lg flex items-center justify-center group-hover:bg-red-600/30 transition-all">
+                <UserCog className="text-red-500" size={18} />
+              </div>
+              <span className="text-sm font-medium text-neutral-200 group-hover:text-white">
+                Personal
+              </span>
+              <ArrowRight
+                className="text-neutral-500 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all"
+                size={16}
+              />
+            </a>
 
-          <a 
-            href="/settings"
-            className="group flex items-center gap-3 px-5 py-3 bg-white/[0.03] backdrop-blur-xl rounded-full border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-300 cursor-pointer whitespace-nowrap"
-          >
-            <div className="w-8 h-8 bg-purple-500/10 rounded-full flex items-center justify-center group-hover:bg-purple-500/20 transition-all duration-300">
-              <Settings className="text-purple-400" size={16} strokeWidth={2} />
-            </div>
-            <span className="text-sm font-medium text-white/90 group-hover:text-white transition-colors">
-              Configuración
-            </span>
-            <ArrowRight className="text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all duration-300" size={14} strokeWidth={2} />
-          </a>
+            <a
+              href="/reportes"
+              className="group flex items-center gap-2.5 px-4 py-2.5 bg-neutral-900/80 backdrop-blur-sm rounded-xl border border-neutral-800 hover:bg-neutral-800 hover:border-red-600/50 transition-all shadow-lg whitespace-nowrap snap-start flex-shrink-0"
+            >
+              <div className="w-8 h-8 bg-red-600/20 rounded-lg flex items-center justify-center group-hover:bg-red-600/30 transition-all">
+                <FileText className="text-red-500" size={18} />
+              </div>
+              <span className="text-sm font-medium text-neutral-200 group-hover:text-white">
+                Reportes
+              </span>
+              <ArrowRight
+                className="text-neutral-500 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all"
+                size={16}
+              />
+            </a>
 
-          <a 
-            href="/analytics"
-            className="group flex items-center gap-3 px-5 py-3 bg-white/[0.03] backdrop-blur-xl rounded-full border border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12] transition-all duration-300 cursor-pointer whitespace-nowrap"
-          >
-            <div className="w-8 h-8 bg-emerald-500/10 rounded-full flex items-center justify-center group-hover:bg-emerald-500/20 transition-all duration-300">
-              <BarChart3 className="text-emerald-400" size={16} strokeWidth={2} />
-            </div>
-            <span className="text-sm font-medium text-white/90 group-hover:text-white transition-colors">
-              Analíticas
-            </span>
-            <ArrowRight className="text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5 transition-all duration-300" size={14} strokeWidth={2} />
-          </a>
+            <a
+              href="/settings"
+              className="group flex items-center gap-2.5 px-4 py-2.5 bg-neutral-900/80 backdrop-blur-sm rounded-xl border border-neutral-800 hover:bg-neutral-800 hover:border-red-600/50 transition-all shadow-lg whitespace-nowrap snap-start flex-shrink-0"
+            >
+              <div className="w-8 h-8 bg-red-600/20 rounded-lg flex items-center justify-center group-hover:bg-red-600/30 transition-all">
+                <Settings className="text-red-500" size={18} />
+              </div>
+              <span className="text-sm font-medium text-neutral-200 group-hover:text-white">
+                Configuración
+              </span>
+              <ArrowRight
+                className="text-neutral-500 group-hover:text-neutral-300 group-hover:translate-x-0.5 transition-all"
+                size={16}
+              />
+            </a>
+          </div>
         </div>
 
         {/* Month Selector */}
-        <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-6 mb-6">
-          <div className="flex items-center gap-4">
-            <Calendar className="text-slate-400" size={20} />
-            <label className="text-slate-300 font-medium">Período:</label>
+        <div className="bg-neutral-900/50 backdrop-blur-sm rounded-2xl border border-neutral-800/50 p-4 sm:p-6 mb-6 shadow-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 text-neutral-300 font-medium">
+              <Calendar className="text-red-500" size={20} />
+              <span>Período:</span>
+            </div>
             <input
               type="month"
               value={selectedMonth}
-              onChange={e => setSelectedMonth(e.target.value)}
-              className="px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="flex-1 sm:flex-none px-4 py-2.5 bg-black/80 border border-neutral-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all"
             />
           </div>
         </div>
 
         {/* Main Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6">
           {/* Total Employees */}
-          <div className="bg-gradient-to-br from-blue-900/20 to-blue-800/10 backdrop-blur-sm rounded-2xl border border-blue-700/50 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-blue-700/20 rounded-lg">
-                <Users className="text-blue-400" size={28} />
+          <div className="bg-gradient-to-br from-red-950/40 to-red-900/20 backdrop-blur-sm rounded-2xl border border-red-900/50 p-5 sm:p-6 shadow-xl hover:shadow-2xl hover:border-red-800/70 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="p-2.5 sm:p-3 bg-red-600/20 rounded-xl">
+                <Users className="text-red-500" size={24} />
               </div>
               <div className="text-right">
-                <p className="text-blue-300 text-sm mb-1">Total Empleados</p>
-                <p className="text-4xl font-bold text-white">{stats?.totalEmployees || 0}</p>
+                <p className="text-red-300 text-xs sm:text-sm mb-1">
+                  Total Empleados
+                </p>
+                <p className="text-3xl sm:text-4xl font-bold text-white">
+                  {stats?.totalEmployees || 0}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-blue-300 text-sm">
+            <div className="flex items-center gap-2 text-red-300 text-xs sm:text-sm">
               <Users size={14} />
-              <span>Registrados en el sistema</span>
+              <span>Registrados</span>
             </div>
           </div>
 
           {/* Active Employees */}
-          <div className="bg-gradient-to-br from-emerald-900/20 to-emerald-800/10 backdrop-blur-sm rounded-2xl border border-emerald-700/50 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-emerald-700/20 rounded-lg">
-                <CheckCircle className="text-emerald-400" size={28} />
+          <div className="bg-gradient-to-br from-neutral-900/80 to-neutral-800/50 backdrop-blur-sm rounded-2xl border border-neutral-700 p-5 sm:p-6 shadow-xl hover:shadow-2xl hover:border-neutral-600 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="p-2.5 sm:p-3 bg-white/10 rounded-xl">
+                <CheckCircle className="text-white" size={24} />
               </div>
               <div className="text-right">
-                <p className="text-emerald-300 text-sm mb-1">Empleados Activos</p>
-                <p className="text-4xl font-bold text-white">{stats?.uniquePeople || 0}</p>
+                <p className="text-neutral-300 text-xs sm:text-sm mb-1">
+                  Activos
+                </p>
+                <p className="text-3xl sm:text-4xl font-bold text-white">
+                  {stats?.uniquePeople || 0}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-emerald-300 text-sm">
+            <div className="flex items-center gap-2 text-neutral-300 text-xs sm:text-sm">
               <TrendingUp size={14} />
-              <span>Con registros este mes</span>
+              <span>Este mes</span>
             </div>
           </div>
 
           {/* Punctuality Rate */}
-          <div className="bg-gradient-to-br from-purple-900/20 to-purple-800/10 backdrop-blur-sm rounded-2xl border border-purple-700/50 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-purple-700/20 rounded-lg">
-                <TrendingUp className="text-purple-400" size={28} />
+          <div className="bg-gradient-to-br from-neutral-900/80 to-neutral-800/50 backdrop-blur-sm rounded-2xl border border-neutral-700 p-5 sm:p-6 shadow-xl hover:shadow-2xl hover:border-neutral-600 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="p-2.5 sm:p-3 bg-white/10 rounded-xl">
+                <TrendingUp className="text-white" size={24} />
               </div>
               <div className="text-right">
-                <p className="text-purple-300 text-sm mb-1">Puntualidad</p>
-                <p className="text-4xl font-bold text-white">{stats?.punctualityRate}%</p>
+                <p className="text-neutral-300 text-xs sm:text-sm mb-1">
+                  Puntualidad
+                </p>
+                <p className="text-3xl sm:text-4xl font-bold text-white">
+                  {stats?.punctualityRate}%
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-purple-300 text-sm">
+            <div className="flex items-center gap-2 text-neutral-300 text-xs sm:text-sm">
               <BarChart3 size={14} />
-              <span>Tasa de puntualidad</span>
+              <span>Tasa general</span>
             </div>
           </div>
 
           {/* Alerts */}
-          <div className="bg-gradient-to-br from-red-900/20 to-red-800/10 backdrop-blur-sm rounded-2xl border border-red-700/50 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-red-700/20 rounded-lg">
-                <AlertTriangle className="text-red-400" size={28} />
+          <div className="bg-gradient-to-br from-red-950/40 to-red-900/20 backdrop-blur-sm rounded-2xl border border-red-900/50 p-5 sm:p-6 shadow-xl hover:shadow-2xl hover:border-red-800/70 transition-all">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="p-2.5 sm:p-3 bg-red-600/20 rounded-xl">
+                <AlertTriangle className="text-red-500" size={24} />
               </div>
               <div className="text-right">
-                <p className="text-red-300 text-sm mb-1">Alertas</p>
-                <p className="text-4xl font-bold text-white">{stats?.multipleEntries || 0}</p>
+                <p className="text-red-300 text-xs sm:text-sm mb-1">Alertas</p>
+                <p className="text-3xl sm:text-4xl font-bold text-white">
+                  {stats?.multipleEntries || 0}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-red-300 text-sm">
+            <div className="flex items-center gap-2 text-red-300 text-xs sm:text-sm">
               <AlertTriangle size={14} />
-              <span>Registros múltiples</span>
+              <span>Múltiples registros</span>
             </div>
           </div>
         </div>
 
         {/* Secondary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-slate-700 p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6">
+          <div className="bg-neutral-900/50 backdrop-blur-sm rounded-xl border border-neutral-800/50 p-5 sm:p-6 shadow-lg hover:shadow-xl hover:border-neutral-700 transition-all">
             <div className="flex items-center gap-3 mb-2">
-              <Calendar className="text-slate-400" size={20} />
-              <p className="text-slate-300 font-medium">Total de Registros</p>
+              <Calendar className="text-neutral-400" size={20} />
+              <p className="text-neutral-200 font-medium text-sm sm:text-base">
+                Total Registros
+              </p>
             </div>
-            <p className="text-3xl font-bold text-white">{stats?.totalDays || 0}</p>
-            <p className="text-slate-400 text-sm mt-1">Días registrados este mes</p>
+            <p className="text-2xl sm:text-3xl font-bold text-white">
+              {stats?.totalDays || 0}
+            </p>
+            <p className="text-neutral-400 text-xs sm:text-sm mt-1">
+              Días registrados
+            </p>
           </div>
 
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-emerald-700/50 p-6">
+          <div className="bg-neutral-900/50 backdrop-blur-sm rounded-xl border border-neutral-800/50 p-5 sm:p-6 shadow-lg hover:shadow-xl hover:border-neutral-700 transition-all">
             <div className="flex items-center gap-3 mb-2">
-              <CheckCircle className="text-emerald-400" size={20} />
-              <p className="text-slate-300 font-medium">A Tiempo</p>
+              <CheckCircle className="text-white" size={20} />
+              <p className="text-neutral-200 font-medium text-sm sm:text-base">
+                A Tiempo
+              </p>
             </div>
-            <p className="text-3xl font-bold text-emerald-400">{stats?.onTimeDays || 0}</p>
-            <p className="text-slate-400 text-sm mt-1">Registros puntuales</p>
+            <p className="text-2xl sm:text-3xl font-bold text-white">
+              {stats?.onTimeDays || 0}
+            </p>
+            <p className="text-neutral-400 text-xs sm:text-sm mt-1">
+              Puntuales
+            </p>
           </div>
 
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-xl border border-yellow-700/50 p-6">
+          <div className="bg-neutral-900/50 backdrop-blur-sm rounded-xl border border-red-900/50 p-5 sm:p-6 shadow-lg hover:shadow-xl hover:border-red-800/70 transition-all">
             <div className="flex items-center gap-3 mb-2">
-              <Clock className="text-yellow-400" size={20} />
-              <p className="text-slate-300 font-medium">Retardos</p>
+              <Clock className="text-red-500" size={20} />
+              <p className="text-neutral-200 font-medium text-sm sm:text-base">
+                Retardos
+              </p>
             </div>
-            <p className="text-3xl font-bold text-yellow-400">{stats?.lateDays || 0}</p>
-            <p className="text-slate-400 text-sm mt-1">Llegadas tarde</p>
+            <p className="text-2xl sm:text-3xl font-bold text-red-500">
+              {stats?.lateDays || 0}
+            </p>
+            <p className="text-neutral-400 text-xs sm:text-sm mt-1">
+              Llegadas tarde
+            </p>
           </div>
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Bar Chart - By Department */}
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <Building2 className="text-slate-400" size={24} />
-              <h2 className="text-xl font-bold text-white">Asistencia por Departamento</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          {/* Bar Chart */}
+          <div className="bg-neutral-900/50 backdrop-blur-sm rounded-2xl border border-neutral-800/50 p-4 sm:p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4 sm:mb-6">
+              <Building2 className="text-red-500" size={24} />
+              <h2 className="text-lg sm:text-xl font-bold text-white">
+                Por Departamento
+              </h2>
             </div>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={stats?.deptChartData || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="departamento" stroke="#94a3b8" tick={{ fill: '#94a3b8' }} />
-                <YAxis stroke="#94a3b8" tick={{ fill: '#94a3b8' }} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1e293b', 
-                    border: '1px solid #475569',
-                    borderRadius: '8px',
-                    color: '#fff'
-                  }} 
+                <CartesianGrid strokeDasharray="3 3" stroke="#404040" />
+                <XAxis
+                  dataKey="departamento"
+                  stroke="#a3a3a3"
+                  tick={{ fill: "#a3a3a3", fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
                 />
-                <Legend wrapperStyle={{ color: '#94a3b8' }} />
-                <Bar dataKey="A Tiempo" fill="#34d399" radius={[8, 8, 0, 0]} />
-                <Bar dataKey="Retardos" fill="#fbbf24" radius={[8, 8, 0, 0]} />
+                <YAxis stroke="#a3a3a3" tick={{ fill: "#a3a3a3" }} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#171717",
+                    border: "1px solid #404040",
+                    borderRadius: "12px",
+                    color: "#fff",
+                  }}
+                />
+                <Legend wrapperStyle={{ color: "#a3a3a3" }} />
+                <Bar dataKey="A Tiempo" fill="#ffffff" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="Retardos" fill="#ef4444" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Pie Chart - Overall Distribution */}
-          <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700 p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <PieChart className="text-slate-400" size={24} />
-              <h2 className="text-xl font-bold text-white">Distribución General</h2>
+          {/* Pie Chart */}
+          <div className="bg-neutral-900/50 backdrop-blur-sm rounded-2xl border border-neutral-800/50 p-4 sm:p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4 sm:mb-6">
+              <PieChart className="text-red-500" size={24} />
+              <h2 className="text-lg sm:text-xl font-bold text-white">
+                Distribución General
+              </h2>
             </div>
             <ResponsiveContainer width="100%" height={300}>
               <RePieChart>
@@ -454,7 +545,9 @@ export default function Dashboard() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) =>
+                    `${name} ${(percent * 100).toFixed(0)}%`
+                  }
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -463,13 +556,13 @@ export default function Dashboard() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1e293b', 
-                    border: '1px solid #475569',
-                    borderRadius: '8px',
-                    color: '#fff'
-                  }} 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#171717",
+                    border: "1px solid #404040",
+                    borderRadius: "12px",
+                    color: "#fff",
+                  }}
                 />
               </RePieChart>
             </ResponsiveContainer>
