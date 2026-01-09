@@ -38,6 +38,10 @@ type ChecadaRow = {
 	timestamp_utc: string; // <- YA NO UTC, string tal cual
 };
 
+type AttendanceRow = DayRow & {
+	status: 'ARRIVED' | 'MISSING';
+};
+
 type PersonInfo = {
 	name: string;
 	puesto: string;
@@ -129,6 +133,32 @@ function minutesFromTimestamp(ts: string) {
 	return parseTimeToMinutes(hhmmFromTimestamp(ts));
 }
 
+function csvEscape(value: any) {
+	const s = String(value ?? '');
+	// si contiene comas, comillas o saltos, lo encapsulamos en comillas y escapamos comillas dobles
+	if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+	return s;
+}
+
+function downloadCSV(filename: string, rows: Record<string, any>[]) {
+	const headers = Object.keys(rows[0] || {});
+	const lines = [
+		headers.join(','), // header
+		...rows.map((r) => headers.map((h) => csvEscape(r[h])).join(',')),
+	];
+
+	const csv = lines.join('\n');
+	const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+	const url = URL.createObjectURL(blob);
+
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = filename;
+	a.click();
+
+	setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
 /* =======================
    COMPONENT
    ======================= */
@@ -145,6 +175,9 @@ export default function Dashboard() {
 			'0'
 		)}-${String(d.getDate()).padStart(2, '0')}`;
 	});
+
+	// ✅ filtro por departamento
+	const [deptFilter, setDeptFilter] = useState<string>('ALL');
 
 	// ✅ atajos opcionales
 	const setToday = () => {
@@ -229,18 +262,38 @@ export default function Dashboard() {
 	}, [filterDay]);
 
 	/* =======================
-     COMPUTED (SIN Date)
-     ======================= */
+	 COMPUTED (SIN Date)
+	 ======================= */
 
 	const computed = useMemo(() => {
 		const monthKey = getMonthStringFromDay(filterDay);
+
+		const departments = Array.from(
+			new Set(
+				Object.values(pinToInfo)
+					.filter((p) => p.activo)
+					.map((p) => p.departamento || 'N/A')
+			)
+		).sort((a, b) => a.localeCompare(b));
+
+		const activePins = Object.entries(pinToInfo)
+			.filter(([_, info]) => info.activo)
+			.filter(([_, info]) =>
+				deptFilter === 'ALL'
+					? true
+					: (info.departamento || 'N/A') === deptFilter
+			)
+			.map(([pin]) => pin);
+
+		const expected = activePins.length;
 
 		const logsMonth = monthChecadas
 			.map((c) => ({
 				pin: String(c.pin),
 				ts: String(c.timestamp_utc),
 			}))
-			.filter((x) => !!pinToInfo[x.pin]);
+			// ✅ solo activos + dept filtro
+			.filter((x) => activePins.includes(x.pin));
 
 		const logsDay = logsMonth.filter(
 			(x) => ymdFromTimestamp(x.ts) === filterDay
@@ -299,12 +352,18 @@ export default function Dashboard() {
 			})
 			.filter(Boolean) as DayRow[];
 
+		if (deptFilter !== 'ALL') {
+			dayRows = dayRows.filter((r) => (r.departamento || 'N/A') === deptFilter);
+		}
+
 		// ✅ orden por timestamp (asc). Si quieres desc: b.entryTs.localeCompare(a.entryTs)
 		dayRows.sort((a, b) => b.lastTs.localeCompare(a.lastTs));
 
-		const presentes = dayRows.length;
-		const retardos = dayRows.filter((r) => r.isLate).length;
-		const aTiempo = presentes - retardos;
+		const arrived = dayRows.length;
+		const showingMissingInTable = deptFilter !== 'ALL';
+		const tardy = dayRows.filter((r) => r.isLate).length;
+		const onTime = arrived - tardy;
+		const missing = Math.max(0, expected - arrived);
 
 		/* acumulado mensual */
 		const personDays: Record<string, Record<string, string[]>> = {};
@@ -345,17 +404,74 @@ export default function Dashboard() {
 			.filter(Boolean)
 			.sort((a: any, b: any) => b.count - a.count);
 
+		const arrivedSet = new Set(dayRows.map((r) => r.pin));
+
+		const missingRows: AttendanceRow[] = activePins
+			.filter((pin) => !arrivedSet.has(pin))
+			.map((pin) => {
+				const info = pinToInfo[pin];
+				if (!info) return null;
+
+				// fila “fantasma” para el que no marcó
+				return {
+					pin,
+					name: info.name,
+					departamento: info.departamento,
+					puesto: info.puesto,
+					scheduledEntry: info.horarioEntrada,
+					entryTime: '—',
+					entryTs: '',
+					exitTime: '—',
+					exitTs: '',
+					lastTs: '', // para ordenar
+					lastTime: '',
+					diffMinutes: 0,
+					isLate: false,
+					status: 'MISSING',
+				} as AttendanceRow;
+			})
+			.filter(Boolean) as AttendanceRow[];
+
+		// ✅ dayRows ahora también como AttendanceRow
+		const arrivedRows: AttendanceRow[] = dayRows.map((r) => ({
+			...r,
+			status: 'ARRIVED',
+		}));
+
+		// ✅ REGLA: ALL => solo llegaron | Depto específico => llegaron + faltaron
+		const tableRows: AttendanceRow[] =
+			deptFilter === 'ALL' ? arrivedRows : [...arrivedRows, ...missingRows];
+
+		// ✅ Orden: primero los que llegaron (por hora), luego faltantes al final
+		tableRows.sort((a, b) => {
+			const aKey = a.status === 'ARRIVED' ? `0-${a.lastTs}` : `1-${a.name}`;
+			const bKey = b.status === 'ARRIVED' ? `0-${b.lastTs}` : `1-${b.name}`;
+			// desc en llegadas (más reciente arriba)
+			return bKey.localeCompare(aKey);
+		});
+
 		return {
 			monthKey,
-			presentes,
-			retardos,
-			aTiempo,
+			departments,
+			expected,
+			arrived,
+			missing,
+			tardy,
+			onTime,
+			tableRows,
+			missingRows,
+
+			// ✅ alias para no romper UI actual
+			presentes: arrived,
+			aTiempo: onTime,
+			retardos: tardy,
+
 			dayRows,
 			alertPins,
 			totalEmployees: Object.keys(pinToInfo).length,
 			totalChecadasMonth: logsMonth.length,
 		};
-	}, [filterDay, monthChecadas, pinToInfo]);
+	}, [filterDay, monthChecadas, pinToInfo, deptFilter]);
 
 	if (loading) return <LogoLoader label='Cargando resumen...' />;
 
@@ -383,6 +499,27 @@ export default function Dashboard() {
 		// Fallback (Safari / otros)
 		el.focus();
 		el.click();
+	};
+	const handleExportCSV = () => {
+		// lo que se exporta = lo que se ve en la tabla
+		const exportRows = computed.tableRows.map((r) => ({
+			dia: filterDay,
+			pin: r.pin,
+			empleado: r.name,
+			departamento: r.departamento,
+			puesto: r.puesto,
+			programado: r.scheduledEntry,
+			entrada: r.entryTime,
+			salida: r.exitTime || '—',
+			diferencia_min: r.status === 'MISSING' ? '' : r.diffMinutes,
+			estatus:
+				r.status === 'MISSING' ? 'FALTA' : r.isLate ? 'RETARDO' : 'A TIEMPO',
+		}));
+
+		const deptName = deptFilter === 'ALL' ? 'TODOS' : deptFilter;
+		const safeDept = deptName.replace(/[^\w\- ]+/g, '').replace(/\s+/g, '_');
+
+		downloadCSV(`asistencia_${filterDay}_${safeDept}.csv`, exportRows);
 	};
 
 	/* ====== RETURN ====== */
@@ -573,6 +710,27 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 									</div>
 								</div>
 							</div>
+							{/* ✅ Filtro por departamento */}
+							<div className='flex-1 sm:max-w-[320px]'>
+								<div className='relative'>
+									<select
+										value={deptFilter}
+										onChange={(e) => setDeptFilter(e.target.value)}
+										className='w-full px-3 py-2.5 bg-black/50 border border-neutral-800 rounded-xl text-white
+        focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all text-sm'>
+										<option value='ALL'>Todos los departamentos</option>
+										{computed.departments.map((d) => (
+											<option key={d} value={d}>
+												{d}
+											</option>
+										))}
+									</select>
+
+									<div className='pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 text-xs mr-5'>
+										Depto
+									</div>
+								</div>
+							</div>
 
 							{/* Stats mini (más discretas) */}
 							<div className='flex flex-wrap gap-2 sm:justify-end'>
@@ -581,7 +739,6 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 									Mes{' '}
 									<span className='text-neutral-100'>{computed.monthKey}</span>
 								</span>
-
 								<span className='inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/50 px-2.5 py-0.5 text-[11px] text-neutral-300'>
 									<span className='h-1.5 w-1.5 rounded-full bg-neutral-500' />
 									Checadas{' '}
@@ -720,7 +877,19 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 							</div>
 
 							<div className='shrink-0'>
-								<BadgePill>{computed.dayRows.length} registros</BadgePill>
+								<BadgePill>{computed.tableRows.length} registros</BadgePill>
+							</div>
+							<div className='shrink-0 flex items-center gap-2'>
+								<BadgePill>{computed.tableRows.length} registros</BadgePill>
+
+								<button
+									onClick={handleExportCSV}
+									className='inline-flex items-center gap-2 px-3 py-2 rounded-xl
+      bg-neutral-900/70 border border-neutral-800 text-neutral-200
+      hover:bg-neutral-800/80 hover:border-emerald-700/40 transition text-xs'>
+									<span className='h-2 w-2 rounded-full bg-emerald-400' />
+									Exportar CSV
+								</button>
 							</div>
 						</div>
 
@@ -729,7 +898,7 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 							<div className='max-h-[65vh] overflow-y-auto'>
 								{/* ===== MÓVIL: TARJETAS ===== */}
 								<div className='sm:hidden p-3 space-y-3'>
-									{computed.dayRows.map((r) => (
+									{computed.tableRows.map((r) => (
 										<div
 											key={r.pin}
 											className='p-3 rounded-xl border border-neutral-800 bg-black/35'>
@@ -779,7 +948,7 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 										</div>
 									))}
 
-									{!computed.dayRows.length ? (
+									{!computed.tableRows.length ? (
 										<div className='py-10 text-center text-neutral-400'>
 											No hay checadas para este día.
 										</div>
@@ -813,16 +982,37 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 										</thead>
 
 										<tbody className='bg-black/30'>
-											{computed.dayRows.map((r) => (
+											{computed.tableRows.map((r) => (
 												<tr
 													key={r.pin}
-													className='border-t border-neutral-800 hover:bg-neutral-900/50 transition'>
+													className={[
+														'border-t border-neutral-800 transition',
+														r.status === 'MISSING'
+															? 'bg-red-950/40 hover:bg-neutral-900'
+															: r.isLate
+															? 'bg-amber-950/40 hover:bg-red-900/40'
+															: 'hover:bg-amber-900/50',
+													].join(' ')}>
 													<td className='px-3 py-2 min-w-[260px]'>
-														<div className='text-white font-medium truncate'>
-															{r.name}
-														</div>
-														<div className='text-xs text-neutral-500 truncate'>
-															{r.puesto} • PIN {r.pin}
+														<div className='flex items-center gap-3'>
+															<span
+																className={[
+																	'w-1.5 h-8 rounded-full',
+																	r.status === 'MISSING'
+																		? 'bg-neutral-500'
+																		: r.isLate
+																		? 'bg-amber-500'
+																		: 'bg-emerald-500/60',
+																].join(' ')}
+															/>
+															<div className='min-w-0'>
+																<div className='text-white font-medium truncate'>
+																	{r.name}
+																</div>
+																<div className='text-xs text-neutral-500 truncate'>
+																	{r.puesto} • PIN {r.pin}
+																</div>
+															</div>
 														</div>
 													</td>
 
@@ -840,11 +1030,22 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 													<td
 														className={[
 															'px-3 py-2 text-right font-mono whitespace-nowrap',
-															r.isLate ? 'text-red-300' : 'text-emerald-300',
+															r.status === 'MISSING'
+																? 'text-neutral-500'
+																: r.isLate
+																? 'text-red-300'
+																: 'text-emerald-300',
 														].join(' ')}>
-														{r.diffMinutes >= 0 ? '+' : ''}
-														{r.diffMinutes}m
+														{r.status === 'MISSING' ? (
+															<span className='text-neutral-500'>—</span>
+														) : (
+															<>
+																{r.diffMinutes >= 0 ? '+' : ''}
+																{r.diffMinutes}m
+															</>
+														)}
 													</td>
+
 													<td className='px-3 py-2 text-right font-mono text-white whitespace-nowrap'>
 														{r.exitTime || '—'}
 														<div className='text-[11px] text-neutral-500 whitespace-nowrap'>
@@ -853,12 +1054,22 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 													</td>
 
 													<td className='px-3 py-2 text-right whitespace-nowrap'>
-														{r.isLate ? (
-															<span className='inline-flex items-center px-2 py-1 rounded-full text-[11px] bg-red-600/20 border border-red-700 text-red-200'>
+														{r.status === 'MISSING' ? (
+															<span
+																className='inline-flex items-center px-2 py-1 rounded-full text-[11px]
+    bg-red-600/20 border border-red-700 text-red-200'>
+																Falta
+															</span>
+														) : r.isLate ? (
+															<span
+																className='inline-flex items-center px-2 py-1 rounded-full text-[11px]
+    bg-amber-500/15 border border-amber-600/40 text-amber-200'>
 																Retardo
 															</span>
 														) : (
-															<span className='inline-flex items-center px-2 py-1 rounded-full text-[11px] bg-emerald-600/15 border border-emerald-700/40 text-emerald-200'>
+															<span
+																className='inline-flex items-center px-2 py-1 rounded-full text-[11px]
+    bg-emerald-600/15 border border-emerald-700/40 text-emerald-200'>
 																A tiempo
 															</span>
 														)}
@@ -875,7 +1086,7 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 												</tr>
 											))}
 
-											{!computed.dayRows.length ? (
+											{!computed.tableRows.length ? (
 												<tr>
 													<td
 														colSpan={5}
