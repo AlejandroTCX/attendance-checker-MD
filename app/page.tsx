@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import LogoLoader from '@/components/ui/logoLoader';
 import {
 	Users,
@@ -14,6 +14,7 @@ import {
 	UserCog,
 	Building2,
 	BarChart3,
+	CalendarDays,
 } from 'lucide-react';
 
 type WorkerRow = {
@@ -50,8 +51,18 @@ type DayRow = {
 	name: string;
 	departamento: string;
 	puesto: string;
+
 	scheduledEntry: string;
 	entryTime: string;
+	entryTs: string;
+
+	// ✅ salida detectada (segunda checada >= 60 min después)
+	exitTime: string; // '' si no hay
+	exitTs: string; // '' si no hay
+
+	lastTs: string; // 👈 NUEVO: última checada del día (para ordenar)
+	lastTime: string;
+
 	diffMinutes: number;
 	isLate: boolean;
 };
@@ -112,38 +123,8 @@ function BadgePill({ children }: { children: React.ReactNode }) {
 		</span>
 	);
 }
-
-function Segmented({
-	value,
-	onChange,
-	options,
-}: {
-	value: string;
-	onChange: (v: string) => void;
-	options: { value: string; label: string; icon?: React.ReactNode }[];
-}) {
-	return (
-		<div className='inline-flex rounded-xl bg-neutral-900/70 p-1 border border-neutral-800'>
-			{options.map((opt) => {
-				const active = value === opt.value;
-				return (
-					<button
-						key={opt.value}
-						onClick={() => onChange(opt.value)}
-						className={[
-							'px-3 py-2 rounded-lg text-sm font-medium transition-all',
-							'flex items-center justify-center gap-2 min-w-[110px]',
-							active
-								? 'bg-red-600 text-white shadow-lg shadow-red-600/25'
-								: 'text-neutral-300 hover:bg-neutral-800/70',
-						].join(' ')}>
-						{opt.icon}
-						{opt.label}
-					</button>
-				);
-			})}
-		</div>
-	);
+function minutesFromTimestamp(ts: string) {
+	return parseTimeToMinutes(hhmmFromTimestamp(ts));
 }
 
 /* =======================
@@ -152,9 +133,9 @@ function Segmented({
 
 export default function Dashboard() {
 	const [loading, setLoading] = useState(true);
+	const dateInputRef = useRef<HTMLInputElement>(null);
 
-	// filtros
-	const [dayPreset, setDayPreset] = useState<'today' | 'yesterday'>('today');
+	// ✅ filtro por día (cualquier día)
 	const [filterDay, setFilterDay] = useState(() => {
 		const d = new Date();
 		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
@@ -163,21 +144,30 @@ export default function Dashboard() {
 		)}-${String(d.getDate()).padStart(2, '0')}`;
 	});
 
-	// data
-	const [pinToInfo, setPinToInfo] = useState<Record<string, PersonInfo>>({});
-	const [monthChecadas, setMonthChecadas] = useState<ChecadaRow[]>([]);
-	const [apiError, setApiError] = useState<string | null>(null);
-
-	/* preset hoy / ayer */
-	useEffect(() => {
+	// ✅ atajos opcionales
+	const setToday = () => {
 		const d = new Date();
-		if (dayPreset === 'yesterday') d.setDate(d.getDate() - 1);
 		setFilterDay(
 			`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
 				d.getDate()
 			).padStart(2, '0')}`
 		);
-	}, [dayPreset]);
+	};
+
+	const setYesterday = () => {
+		const d = new Date();
+		d.setDate(d.getDate() - 1);
+		setFilterDay(
+			`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+				d.getDate()
+			).padStart(2, '0')}`
+		);
+	};
+
+	// data
+	const [pinToInfo, setPinToInfo] = useState<Record<string, PersonInfo>>({});
+	const [monthChecadas, setMonthChecadas] = useState<ChecadaRow[]>([]);
+	const [apiError, setApiError] = useState<string | null>(null);
 
 	/* cargar empleados */
 	useEffect(() => {
@@ -254,25 +244,38 @@ export default function Dashboard() {
 			(x) => ymdFromTimestamp(x.ts) === filterDay
 		);
 
+		// por pin para obtener la primera entrada del día
 		const byPin: Record<string, string[]> = {};
 		for (const l of logsDay) {
 			if (!byPin[l.pin]) byPin[l.pin] = [];
 			byPin[l.pin].push(l.ts);
 		}
 
-		const dayRows: DayRow[] = Object.entries(byPin)
+		let dayRows: DayRow[] = Object.entries(byPin)
 			.map(([pin, timestamps]) => {
 				const info = pinToInfo[pin];
 				if (!info) return null;
 
-				const sorted = timestamps.slice().sort(); // ordena por string
+				const sorted = timestamps.slice().sort(); // strings ISO ordenan bien
 				const entryTs = sorted[0];
+				const lastTs = sorted[sorted.length - 1];
 
 				const entryTime = hhmmFromTimestamp(entryTs);
-				const entryMinutes = parseTimeToMinutes(entryTime);
+				const entryMinutes = minutesFromTimestamp(entryTs);
+
+				// ✅ salida: primera checada que esté al menos 60 min después de la entrada
+				const exitCandidate = sorted.find(
+					(ts) => minutesFromTimestamp(ts) >= entryMinutes + 60
+				);
+				const lastMinutes = minutesFromTimestamp(lastTs);
+				const exitTs = lastMinutes >= entryMinutes + 60 ? lastTs : '';
+				const exitTime = exitTs ? hhmmFromTimestamp(exitTs) : '';
+
+				const lastTime = hhmmFromTimestamp(lastTs);
+
 				const scheduled = parseTimeToMinutes(info.horarioEntrada);
 				const diff = entryMinutes - scheduled;
-				const isLate = entryMinutes > scheduled + info.tolerancia;
+				const isLate = diff > info.tolerancia;
 
 				return {
 					pin,
@@ -281,11 +284,21 @@ export default function Dashboard() {
 					puesto: info.puesto,
 					scheduledEntry: info.horarioEntrada,
 					entryTime,
+					entryTs,
+
+					exitTime,
+					exitTs,
+
+					lastTs, // 👈
+					lastTime, // 👈 (opcional)
 					diffMinutes: diff,
 					isLate,
 				} as DayRow;
 			})
 			.filter(Boolean) as DayRow[];
+
+		// ✅ orden por timestamp (asc). Si quieres desc: b.entryTs.localeCompare(a.entryTs)
+		dayRows.sort((a, b) => b.lastTs.localeCompare(a.lastTs));
 
 		const presentes = dayRows.length;
 		const retardos = dayRows.filter((r) => r.isLate).length;
@@ -353,7 +366,24 @@ export default function Dashboard() {
 			year: 'numeric',
 		});
 
-	/* ====== AQUÍ EMPIEZA TU RETURN ====== */
+	const openDatePicker: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+		e.preventDefault();
+		const el = dateInputRef.current;
+		if (!el) return;
+
+		// Chrome/Edge
+		const anyEl = el as any;
+		if (typeof anyEl.showPicker === 'function') {
+			anyEl.showPicker();
+			return;
+		}
+
+		// Fallback (Safari / otros)
+		el.focus();
+		el.click();
+	};
+
+	/* ====== RETURN ====== */
 
 	return (
 		<div className='min-h-screen bg-gradient-to-br from-black via-neutral-950 to-black'>
@@ -361,7 +391,7 @@ export default function Dashboard() {
 				{/* Header con logo */}
 				<div className='mb-6 lg:mb-8'>
 					<div className='flex items-center gap-3 mb-3'>
-						<div className='w-14 h-14 rounded-2xl border border-neutral-800 bg-neutral-900/60 flex items-center justify-center overflow-hidden'>
+						<div className='w-14 h-12 rounded-2xl border border-neutral-800 bg-neutral-900/60 flex items-center justify-center overflow-hidden'>
 							<img
 								src='/Logo%20Mariana%20Nuevo%20.png'
 								alt='Mariana Distribuciones'
@@ -374,7 +404,7 @@ export default function Dashboard() {
 								Resumen de Asistencia
 							</h1>
 							<p className='text-neutral-400 text-sm sm:text-base'>
-								Hoy/Ayer + alertas por acumulación de retardos
+								Filtra por día + alertas por acumulación de retardos
 							</p>
 						</div>
 
@@ -382,10 +412,6 @@ export default function Dashboard() {
 							<BadgePill>{computed.totalEmployees} empleados</BadgePill>
 							<BadgePill>Mes: {computed.monthKey}</BadgePill>
 						</div>
-					</div>
-
-					<div className='text-neutral-500 text-xs sm:text-sm'>
-						Mostrando: <span className='text-neutral-200'>{showDateText}</span>
 					</div>
 
 					{apiError ? (
@@ -397,7 +423,7 @@ export default function Dashboard() {
 				</div>
 
 				{/* Navigation Pills */}
-				<div className='mb-6 lg:mb-8'>
+				<div className='mb-2 lg:mb-2'>
 					<div className='flex gap-3 overflow-x-auto pb-3 scrollbar-hide snap-x snap-mandatory'>
 						<a
 							href='/calendar'
@@ -460,108 +486,172 @@ export default function Dashboard() {
 						</a>
 					</div>
 				</div>
-
-				{/* Filtro Hoy/Ayer */}
-				<div className='bg-neutral-900/50 backdrop-blur-sm rounded-2xl border border-neutral-800/50 p-4 sm:p-6 mb-6 shadow-xl'>
-					<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
-						<div className='flex items-center gap-2 text-neutral-300 font-medium'>
-							<Calendar className='text-red-500' size={20} />
-							<span>Período:</span>
-						</div>
-
-						<div className='flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-end'>
-							<Segmented
-								value={dayPreset}
-								onChange={(v) => setDayPreset(v as any)}
-								options={[
-									{ value: 'today', label: 'Hoy' },
-									{ value: 'yesterday', label: 'Ayer' },
-								]}
-							/>
-
-							<div className='flex-1 sm:flex-none'>
-								<input
-									type='date'
-									value={filterDay}
-									onChange={(e) => setFilterDay(e.target.value)}
-									className='w-full sm:w-auto px-4 py-2.5 bg-black/80 border border-neutral-700 rounded-xl text-white
-                             focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all'
-								/>
-							</div>
+				<div className='mb-3 flex items-center justify-between gap-3'>
+					<div className='min-w-0'>
+						<div className='text-sm text-neutral-400'>Día seleccionado</div>
+						<div className='text-white font-semibold truncate'>
+							{showDateText}
 						</div>
 					</div>
 
-					<div className='mt-3 flex flex-wrap gap-2'>
-						<BadgePill>Mes acumulado: {computed.monthKey}</BadgePill>
-						<BadgePill>
-							Checadas mes:{' '}
-							<span className='text-neutral-200'>
-								{computed.totalChecadasMonth}
-							</span>
-						</BadgePill>
-						<BadgePill>
-							Alertas:{' '}
-							<span className='text-red-300'>{computed.alertPins.length}</span>
-						</BadgePill>
+					<span className='hidden sm:inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/60 px-3 py-1 text-xs text-neutral-300'>
+						<CalendarDays size={14} className='text-red-400' />
+						{filterDay}
+					</span>
+				</div>
+
+				{/* Filtro por día */}
+				{/* Filtro por día (más estético) */}
+				<div className='relative overflow-hidden rounded-2xl border border-neutral-800/60 bg-neutral-950/50 p-3 sm:p-4 mb-2 shadow-lg'>
+					{/* glow más sutil */}
+					<div className='pointer-events-none absolute -top-28 -right-28 h-48 w-48 rounded-full bg-red-600/5 blur-3xl' />
+
+					<div className='relative flex flex-col gap-2.5'>
+						{/* Header compacto */}
+						<div className='flex items-center justify-between gap-3'>
+							<div className='flex items-center gap-2 min-w-0'>
+								<div className='h-9 w-9 rounded-xl border border-neutral-800 bg-neutral-900/60 flex items-center justify-center shrink-0'>
+									<Calendar className='text-red-500' size={16} />
+								</div>
+
+								<div className='min-w-0'>
+									<div className='text-white font-semibold leading-tight'>
+										Filtro por día
+									</div>
+									{/* opcional: quítalo si lo quieres aún más compacto */}
+									<div className='text-[11px] text-neutral-500 truncate'>
+										Selecciona una fecha
+									</div>
+								</div>
+							</div>
+
+							{/* Atajos mini */}
+							<div className='flex items-center gap-2 shrink-0'>
+								<button
+									onClick={setToday}
+									className='px-2.5 py-1.5 rounded-lg bg-neutral-900/70 border border-neutral-800 text-neutral-200 hover:bg-neutral-800/80 transition text-xs'>
+									Hoy
+								</button>
+								<button
+									onClick={setYesterday}
+									className='px-2.5 py-1.5 rounded-lg bg-neutral-900/70 border border-neutral-800 text-neutral-200 hover:bg-neutral-800/80 transition text-xs'>
+									Ayer
+								</button>
+							</div>
+						</div>
+
+						{/* Controles compactos */}
+						<div className='flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between'>
+							{/* Input date */}
+							<div className='flex-1'>
+								<div className='relative'>
+									<input
+										ref={dateInputRef}
+										type='date'
+										value={filterDay}
+										onChange={(e) => setFilterDay(e.target.value)}
+										className='w-full pr-11 px-3 py-2.5 bg-black/50 border border-neutral-800 rounded-xl text-white
+focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent transition-all text-sm'
+									/>
+
+									<button
+										type='button'
+										onClick={openDatePicker}
+										className='absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg border border-neutral-800 bg-neutral-900/60
+hover:bg-neutral-800/80 transition flex items-center justify-center'
+										aria-label='Abrir calendario'>
+										<CalendarDays size={16} className='text-red-400' />
+									</button>
+
+									{/* badge del mes (solo desktop) */}
+									<div className='hidden sm:flex absolute right-10 top-1/2 -translate-y-1/2'>
+										<span className='px-2 py-0.5 rounded-lg text-[10px] border border-neutral-800 bg-neutral-900/60 text-neutral-300'>
+											{computed.monthKey}
+										</span>
+									</div>
+								</div>
+							</div>
+
+							{/* Stats mini (más discretas) */}
+							<div className='flex flex-wrap gap-2 sm:justify-end'>
+								<span className='inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/50 px-2.5 py-0.5 text-[11px] text-neutral-300'>
+									<span className='h-1.5 w-1.5 rounded-full bg-neutral-500' />
+									Mes{' '}
+									<span className='text-neutral-100'>{computed.monthKey}</span>
+								</span>
+
+								<span className='inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900/50 px-2.5 py-0.5 text-[11px] text-neutral-300'>
+									<span className='h-1.5 w-1.5 rounded-full bg-neutral-500' />
+									Checadas{' '}
+									<span className='text-neutral-100'>
+										{computed.totalChecadasMonth}
+									</span>
+								</span>
+
+								<span className='inline-flex items-center gap-2 rounded-full border border-red-900/40 bg-red-900/10 px-2.5 py-0.5 text-[11px] text-red-200'>
+									<span className='h-1.5 w-1.5 rounded-full bg-red-400' />
+									Alertas{' '}
+									<span className='text-red-100'>
+										{computed.alertPins.length}
+									</span>
+								</span>
+							</div>
+						</div>
 					</div>
 				</div>
 
 				{/* Cards resumen del día */}
-				<div className='grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6'>
-					<div className='bg-gradient-to-br from-neutral-900/80 to-neutral-800/50 backdrop-blur-sm rounded-2xl border border-neutral-700 p-5 sm:p-6 shadow-xl hover:shadow-2xl hover:border-neutral-600 transition-all'>
-						<div className='flex items-center justify-between mb-4'>
-							<div className='p-3 bg-white/10 rounded-xl'>
-								<Users className='text-white' size={24} />
+				<div className='grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4'>
+					<div className='bg-gradient-to-br from-neutral-900/80 to-neutral-800/50 backdrop-blur-sm rounded-xl border border-neutral-700 p-4 shadow-lg hover:border-neutral-600 transition-all'>
+						<div className='flex items-center justify-between mb-2'>
+							<div className='p-2 bg-white/10 rounded-lg'>
+								<Users className='text-white' size={20} />
 							</div>
 							<div className='text-right'>
-								<p className='text-neutral-300 text-xs sm:text-sm mb-1'>
-									Llegaron
-								</p>
-								<p className='text-3xl sm:text-4xl font-bold text-white'>
+								<p className='text-neutral-400 text-xs'>Llegaron</p>
+								<p className='text-2xl sm:text-3xl font-bold text-white'>
 									{computed.presentes}
 								</p>
 							</div>
 						</div>
-						<div className='flex items-center gap-2 text-neutral-300 text-xs sm:text-sm'>
-							<BarChart3 size={14} />
+						<div className='flex items-center gap-1.5 text-neutral-400 text-xs'>
+							<BarChart3 size={12} />
 							<span>Presentes del día</span>
 						</div>
 					</div>
 
-					<div className='bg-gradient-to-br from-neutral-900/80 to-neutral-800/50 backdrop-blur-sm rounded-2xl border border-neutral-700 p-5 sm:p-6 shadow-xl hover:shadow-2xl hover:border-neutral-600 transition-all'>
-						<div className='flex items-center justify-between mb-4'>
-							<div className='p-3 bg-emerald-600/15 rounded-xl'>
-								<CheckCircle className='text-emerald-300' size={24} />
+					<div className='bg-gradient-to-br from-neutral-900/80 to-neutral-800/50 backdrop-blur-sm rounded-xl border border-neutral-700 p-4 shadow-lg hover:border-neutral-600 transition-all'>
+						<div className='flex items-center justify-between mb-2'>
+							<div className='p-2 bg-emerald-600/15 rounded-lg'>
+								<CheckCircle className='text-emerald-300' size={20} />
 							</div>
 							<div className='text-right'>
-								<p className='text-neutral-300 text-xs sm:text-sm mb-1'>
-									A tiempo
-								</p>
-								<p className='text-3xl sm:text-4xl font-bold text-white'>
+								<p className='text-neutral-400 text-xs'>A tiempo</p>
+								<p className='text-2xl sm:text-3xl font-bold text-white'>
 									{computed.aTiempo}
 								</p>
 							</div>
 						</div>
-						<div className='flex items-center gap-2 text-neutral-300 text-xs sm:text-sm'>
-							<CheckCircle size={14} className='text-emerald-300' />
+						<div className='flex items-center gap-1.5 text-neutral-400 text-xs'>
+							<CheckCircle size={12} className='text-emerald-300' />
 							<span>Puntuales</span>
 						</div>
 					</div>
 
-					<div className='bg-gradient-to-br from-red-950/40 to-red-900/20 backdrop-blur-sm rounded-2xl border border-red-900/50 p-5 sm:p-6 shadow-xl hover:shadow-2xl hover:border-red-800/70 transition-all'>
-						<div className='flex items-center justify-between mb-4'>
-							<div className='p-3 bg-red-600/20 rounded-xl'>
-								<Clock className='text-red-400' size={24} />
+					<div className='bg-gradient-to-br from-red-950/40 to-red-900/20 backdrop-blur-sm rounded-xl border border-red-900/50 p-4 shadow-lg hover:border-red-800/70 transition-all'>
+						<div className='flex items-center justify-between mb-2'>
+							<div className='p-2 bg-red-600/20 rounded-lg'>
+								<Clock className='text-red-400' size={20} />
 							</div>
 							<div className='text-right'>
-								<p className='text-red-300 text-xs sm:text-sm mb-1'>Retardos</p>
-								<p className='text-3xl sm:text-4xl font-bold text-red-400'>
+								<p className='text-red-300 text-xs'>Retardos</p>
+								<p className='text-2xl sm:text-3xl font-bold text-red-400'>
 									{computed.retardos}
 								</p>
 							</div>
 						</div>
-						<div className='flex items-center gap-2 text-red-300 text-xs sm:text-sm'>
-							<Clock size={14} />
+						<div className='flex items-center gap-1.5 text-red-300 text-xs'>
+							<Clock size={12} />
 							<span>Llegadas tarde</span>
 						</div>
 					</div>
@@ -569,6 +659,7 @@ export default function Dashboard() {
 
 				{/* Alertas + Tabla */}
 				<div className='grid grid-cols-1 lg:grid-cols-[minmax(0,30%)_minmax(0,70%)] gap-4 sm:gap-6 items-start'>
+					{/* ALERTAS */}
 					<div className='bg-neutral-900/50 backdrop-blur-sm rounded-2xl border border-neutral-800/50 p-3 sm:p-4 shadow-xl'>
 						<div className='flex items-center justify-between gap-3 mb-4'>
 							<div className='flex items-center gap-3'>
@@ -581,27 +672,31 @@ export default function Dashboard() {
 						</div>
 
 						{computed.alertPins.length ? (
-							<div className='space-y-3'>
+							<div className='space-y-2'>
 								{computed.alertPins.slice(0, 10).map((p) => (
 									<div
 										key={p.pin}
-										className='flex items-center justify-between gap-3 p-3 rounded-xl border border-neutral-800 bg-black/40'>
-										<div className='min-w-0'>
-											<div className='text-white font-medium truncate'>
+										className='flex items-center gap-3 rounded-xl border border-neutral-800/70 bg-black/30 px-3 py-2'>
+										<div className='h-2 w-2 rounded-full bg-red-400/80 shrink-0' />
+
+										<div className='min-w-0 flex-1'>
+											<div className='text-sm text-white font-medium truncate'>
 												{p.name}
 											</div>
-											<div className='text-xs text-neutral-400 truncate'>
+											<div className='text-[11px] text-neutral-500 truncate'>
 												{p.departamento} • {p.puesto} • PIN {p.pin}
 											</div>
 										</div>
-										<span className='px-3 py-1 rounded-full text-xs font-semibold bg-red-600/20 border border-red-700 text-red-200'>
-											{p.count} retardos
+
+										<span className='shrink-0 rounded-full border border-red-900/60 bg-red-900/15 px-2.5 py-1 text-[11px] text-red-200 font-semibold'>
+											{p.count}
 										</span>
 									</div>
 								))}
+
 								{computed.alertPins.length > 10 ? (
-									<div className='text-xs text-neutral-500'>
-										Mostrando 10 de {computed.alertPins.length}.
+									<div className='text-[11px] text-neutral-500 pt-1'>
+										Mostrando 10 de {computed.alertPins.length}
 									</div>
 								) : null}
 							</div>
@@ -612,6 +707,7 @@ export default function Dashboard() {
 						)}
 					</div>
 
+					{/* LLEGADAS DEL DÍA */}
 					<div className='bg-neutral-900/50 backdrop-blur-sm rounded-2xl border border-neutral-800/50 p-3 sm:p-4 shadow-xl'>
 						<div className='flex items-center justify-between gap-3 mb-4'>
 							<div className='flex items-center gap-3 min-w-0'>
@@ -627,100 +723,156 @@ export default function Dashboard() {
 						</div>
 
 						<div className='rounded-xl border border-neutral-800 overflow-hidden'>
-							{/* Scroll horizontal suave en pantallas chicas */}
-							<div className='overflow-x-auto'>
-								<table className='w-full text-sm min-w-[720px]'>
-									<thead className='bg-neutral-900'>
-										<tr className='text-neutral-300'>
-											<th className='text-left px-3 py-2'>Empleado</th>
-
-											{/* Oculta Depto en móvil */}
-											<th className='text-left px-3 py-2 hidden sm:table-cell'>
-												Depto
-											</th>
-
-											<th className='text-right px-3 py-2 whitespace-nowrap'>
-												Entrada
-											</th>
-											<th className='text-right px-3 py-2 whitespace-nowrap'>
-												Dif
-											</th>
-											<th className='text-right px-3 py-2 whitespace-nowrap'>
-												Estatus
-											</th>
-										</tr>
-									</thead>
-
-									<tbody className='bg-black/30'>
-										{computed.dayRows.map((r) => (
-											<tr
-												key={r.pin}
-												className='border-t border-neutral-800 hover:bg-neutral-900/50 transition'>
-												{/* Empleado */}
-												<td className='px-3 py-2 min-w-[260px]'>
-													<div className='text-white font-medium truncate'>
+							{/* ✅ Scroll interno */}
+							<div className='max-h-[65vh] overflow-y-auto'>
+								{/* ===== MÓVIL: TARJETAS ===== */}
+								<div className='sm:hidden p-3 space-y-3'>
+									{computed.dayRows.map((r) => (
+										<div
+											key={r.pin}
+											className='p-3 rounded-xl border border-neutral-800 bg-black/35'>
+											<div className='flex items-start justify-between gap-3'>
+												<div className='min-w-0'>
+													<div className='text-white font-semibold truncate'>
 														{r.name}
 													</div>
-
 													<div className='text-xs text-neutral-500 truncate'>
 														{r.puesto} • PIN {r.pin}
 													</div>
-
-													{/* En móvil mostramos Depto aquí */}
-													<div className='text-xs text-neutral-400 truncate sm:hidden mt-0.5'>
+													<div className='text-xs text-neutral-400 truncate mt-1'>
 														{r.departamento}
 													</div>
-												</td>
+												</div>
 
-												{/* Depto (solo >= sm) */}
-												<td className='px-3 py-2 text-neutral-300 hidden sm:table-cell max-w-[220px]'>
-													<div className='truncate'>{r.departamento}</div>
-												</td>
-
-												{/* Entrada */}
-												<td className='px-3 py-2 text-right font-mono text-white whitespace-nowrap'>
-													{r.entryTime}
-													<div className='text-[11px] text-neutral-500 whitespace-nowrap'>
-														{r.scheduledEntry}
+												<div className='text-right shrink-0'>
+													<div className='font-mono text-white text-lg leading-none'>
+														{r.entryTime}
 													</div>
-												</td>
+													<div className='text-[11px] text-neutral-500 font-mono mt-1'>
+														Prog: {r.scheduledEntry}
+													</div>
+												</div>
+											</div>
 
-												{/* Dif */}
-												<td
+											<div className='mt-3 flex items-center justify-between'>
+												<div
 													className={[
-														'px-3 py-2 text-right font-mono whitespace-nowrap',
+														'font-mono text-sm',
 														r.isLate ? 'text-red-300' : 'text-emerald-300',
 													].join(' ')}>
 													{r.diffMinutes >= 0 ? '+' : ''}
 													{r.diffMinutes}m
-												</td>
+												</div>
 
-												{/* Estatus */}
-												<td className='px-3 py-2 text-right whitespace-nowrap'>
-													{r.isLate ? (
-														<span className='inline-flex items-center px-2 py-1 rounded-full text-[11px] bg-red-600/20 border border-red-700 text-red-200'>
-															Retardo
-														</span>
-													) : (
-														<span className='inline-flex items-center px-2 py-1 rounded-full text-[11px] bg-emerald-600/15 border border-emerald-700/40 text-emerald-200'>
-															A tiempo
-														</span>
-													)}
-												</td>
-											</tr>
-										))}
+												{r.isLate ? (
+													<span className='inline-flex items-center px-2 py-1 rounded-full text-[11px] bg-red-600/20 border border-red-700 text-red-200'>
+														Retardo
+													</span>
+												) : (
+													<span className='inline-flex items-center px-2 py-1 rounded-full text-[11px] bg-emerald-600/15 border border-emerald-700/40 text-emerald-200'>
+														A tiempo
+													</span>
+												)}
+											</div>
+										</div>
+									))}
 
-										{!computed.dayRows.length ? (
-											<tr>
-												<td
-													colSpan={5}
-													className='px-3 py-8 text-center text-neutral-400'>
-													No hay checadas para este día.
-												</td>
+									{!computed.dayRows.length ? (
+										<div className='py-10 text-center text-neutral-400'>
+											No hay checadas para este día.
+										</div>
+									) : null}
+								</div>
+
+								{/* ===== DESKTOP: TABLA ===== */}
+								<div className='hidden sm:block overflow-x-auto'>
+									<table className='w-full text-sm min-w-[720px]'>
+										<thead className='bg-neutral-900 sticky top-0 z-10'>
+											<tr className='text-neutral-300'>
+												<th className='text-left px-3 py-2'>Empleado</th>
+												<th className='text-left px-3 py-2'>Depto</th>
+												<th className='text-right px-3 py-2 whitespace-nowrap'>
+													Entrada
+												</th>
+												<th className='text-right px-3 py-2 whitespace-nowrap'>
+													Dif
+												</th>
+												<th className='text-right px-3 py-2 whitespace-nowrap'>
+													Salida
+												</th>
+
+												<th className='text-right px-3 py-2 whitespace-nowrap'>
+													Estatus
+												</th>
 											</tr>
-										) : null}
-									</tbody>
-								</table>
+										</thead>
+
+										<tbody className='bg-black/30'>
+											{computed.dayRows.map((r) => (
+												<tr
+													key={r.pin}
+													className='border-t border-neutral-800 hover:bg-neutral-900/50 transition'>
+													<td className='px-3 py-2 min-w-[260px]'>
+														<div className='text-white font-medium truncate'>
+															{r.name}
+														</div>
+														<div className='text-xs text-neutral-500 truncate'>
+															{r.puesto} • PIN {r.pin}
+														</div>
+													</td>
+
+													<td className='px-3 py-2 text-neutral-300 max-w-[220px]'>
+														<div className='truncate'>{r.departamento}</div>
+													</td>
+
+													<td className='px-3 py-2 text-right font-mono text-white whitespace-nowrap'>
+														{r.entryTime}
+														<div className='text-[11px] text-neutral-500 whitespace-nowrap'>
+															{r.scheduledEntry}
+														</div>
+													</td>
+
+													<td
+														className={[
+															'px-3 py-2 text-right font-mono whitespace-nowrap',
+															r.isLate ? 'text-red-300' : 'text-emerald-300',
+														].join(' ')}>
+														{r.diffMinutes >= 0 ? '+' : ''}
+														{r.diffMinutes}m
+													</td>
+													<td className='px-3 py-2 text-right font-mono text-white whitespace-nowrap'>
+														{r.exitTime || '—'}
+														<div className='text-[11px] text-neutral-500 whitespace-nowrap'>
+															{r.exitTime ? 'detectada' : 'sin registro'}
+														</div>
+													</td>
+
+													<td className='px-3 py-2 text-right whitespace-nowrap'>
+														{r.isLate ? (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-[11px] bg-red-600/20 border border-red-700 text-red-200'>
+																Retardo
+															</span>
+														) : (
+															<span className='inline-flex items-center px-2 py-1 rounded-full text-[11px] bg-emerald-600/15 border border-emerald-700/40 text-emerald-200'>
+																A tiempo
+															</span>
+														)}
+													</td>
+												</tr>
+											))}
+
+											{!computed.dayRows.length ? (
+												<tr>
+													<td
+														colSpan={5}
+														className='px-3 py-10 text-center text-neutral-400'>
+														No hay checadas para este día.
+													</td>
+												</tr>
+											) : null}
+										</tbody>
+									</table>
+								</div>
 							</div>
 						</div>
 

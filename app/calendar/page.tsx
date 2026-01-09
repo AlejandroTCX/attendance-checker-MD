@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import Papa from 'papaparse';
+import { useEffect, useMemo, useRef, useState } from 'react';
+
 import {
 	Calendar,
 	Clock,
@@ -19,18 +19,6 @@ interface AttendanceRecord {
 	date: string;
 	pin: string;
 	name: string;
-}
-
-interface PersonRecord {
-	PIN: string;
-	NAME: string;
-	Puesto: string;
-	Departamento: string;
-	'Razón social': string;
-	Entrada: string;
-	Salida: string;
-	Tolerancia: string;
-	'Tiempo de comida': string;
 }
 
 interface DayAttendance {
@@ -55,6 +43,23 @@ interface PersonInfo {
 	tolerancia: number;
 	tiempoComida: string;
 }
+type WorkerRow = {
+	pin: number;
+	nombre: string;
+	puesto: string | null;
+	departamento: string | null;
+	razon_social: string | null;
+	hora_entrada: string | null; // "09:00:00" o "09:00"
+	hora_salida: string | null;
+	tolerancia_minutos: number | null;
+	tiempo_comida_minutos: number | null;
+	activo: boolean | null;
+};
+
+function hhmm(t: string | null | undefined) {
+	if (!t) return '';
+	return t.slice(0, 5);
+}
 
 export default function CalendarPage() {
 	// =========================
@@ -63,6 +68,17 @@ export default function CalendarPage() {
 	const [records, setRecords] = useState<AttendanceRecord[]>([]);
 	const [rawLogs, setRawLogs] = useState<any[]>([]);
 	const [pinToInfo, setPinToInfo] = useState<Record<string, PersonInfo>>({});
+
+	const monthInputRef = useRef<HTMLInputElement>(null);
+	const dayInputRef = useRef<HTMLInputElement>(null);
+
+	const [isPersonOpen, setIsPersonOpen] = useState(false);
+	const personWrapRef = useRef<HTMLDivElement | null>(null);
+	const personInputRef = useRef<HTMLInputElement | null>(null);
+
+	// Filtros nuevos
+	const [personQuery, setPersonQuery] = useState(''); // búsqueda por texto
+	const [dayFilter, setDayFilter] = useState(''); // "YYYY-MM-DD" o ""
 
 	const [people, setPeople] = useState<string[]>([]);
 	const [selectedPerson, setSelectedPerson] = useState<string>('');
@@ -106,17 +122,6 @@ export default function CalendarPage() {
 		return new Date(y, m - 1, d, hh, mm, ss || 0);
 	}
 
-	function parseCSV<T>(csvText: string): Promise<T[]> {
-		return new Promise((resolve, reject) => {
-			Papa.parse<T>(csvText, {
-				header: true,
-				skipEmptyLines: true,
-				complete: (r) => resolve(r.data),
-				error: reject,
-			});
-		});
-	}
-
 	function getLocalDateString(date: Date) {
 		const y = date.getFullYear();
 		const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -127,11 +132,6 @@ export default function CalendarPage() {
 	function parseTimeToMinutes(timeStr: string): number {
 		const [hh, mm] = timeStr.split(':').map(Number);
 		return hh * 60 + mm;
-	}
-
-	function parseTolerancia(tolStr: string): number {
-		const match = tolStr.match(/(\d+)/);
-		return match ? parseInt(match[1]) : 19;
 	}
 
 	function processDayRecords(
@@ -175,48 +175,63 @@ export default function CalendarPage() {
 	// =========================
 	// EFFECT 1: Cargar CSV 1 vez
 	// =========================
+	const [isLoadingWorkers, setIsLoadingWorkers] = useState(true);
+
+	// =========================
+	// EFFECT 1: Cargar EMPLEADOS desde API (1 vez)
+	// =========================
 	useEffect(() => {
 		let alive = true;
 
-		const loadPeopleCsv = async () => {
+		const loadWorkers = async () => {
 			try {
-				setIsLoadingCsv(true);
+				setIsLoadingWorkers(true);
 				setApiError(null);
 
-				const peopleCsv = await fetch('/data/Checador horarios.csv').then((r) =>
-					r.text()
-				);
-				const peopleData = await parseCSV<PersonRecord>(peopleCsv);
+				const res = await fetch('/api/workers');
+				const api = await res.json();
+
+				if (!res.ok) {
+					console.error('workers API error:', api);
+					throw new Error(api?.error || 'Error cargando empleados');
+				}
+
+				const workers: WorkerRow[] = api.workers ?? [];
 
 				const map: Record<string, PersonInfo> = {};
-				peopleData.forEach((p) => {
-					if (p.PIN && p.NAME) {
-						map[p.PIN.trim()] = {
-							name: p.NAME.trim(),
-							puesto: p.Puesto?.trim() || 'N/A',
-							departamento: p.Departamento?.trim() || 'N/A',
-							razonSocial: p['Razón social']?.trim() || 'N/A',
-							horarioEntrada: p.Entrada?.trim() || '09:00',
-							horarioSalida: p.Salida?.trim() || '18:00',
-							tolerancia: parseTolerancia(p.Tolerancia || '19 min'),
-							tiempoComida: p['Tiempo de comida']?.trim() || 'N/A',
-						};
-					}
-				});
+				for (const w of workers) {
+					const pin = String(w.pin).trim();
+					if (!pin) continue;
+
+					map[pin] = {
+						name: (w.nombre ?? '').trim() || 'N/A',
+						puesto: (w.puesto ?? 'N/A').trim(),
+						departamento: (w.departamento ?? 'N/A').trim(),
+						razonSocial: (w.razon_social ?? 'N/A').trim(),
+						horarioEntrada: hhmm(w.hora_entrada) || '09:00',
+						horarioSalida: hhmm(w.hora_salida) || '18:00',
+						tolerancia: w.tolerancia_minutos ?? 0,
+						tiempoComida:
+							w.tiempo_comida_minutos != null
+								? `${w.tiempo_comida_minutos} min`
+								: 'N/A',
+					};
+				}
 
 				if (!alive) return;
 				setPinToInfo(map);
 			} catch (e: any) {
 				console.error(e);
 				if (!alive) return;
-				setApiError(e?.message || 'Error cargando CSV de empleados');
+				setApiError(e?.message || 'Error cargando empleados');
+				setPinToInfo({});
 			} finally {
 				if (!alive) return;
-				setIsLoadingCsv(false);
+				setIsLoadingWorkers(false);
 			}
 		};
 
-		loadPeopleCsv();
+		loadWorkers();
 		return () => {
 			alive = false;
 		};
@@ -320,23 +335,31 @@ export default function CalendarPage() {
 	}, [pinToInfo]);
 
 	const filteredPeople = useMemo(() => {
-		return people.filter((personName) => {
-			const personPin = Object.keys(pinToInfo).find(
-				(pin) => pinToInfo[pin].name === personName
-			);
-			if (!personPin) return false;
+		const q = personQuery.trim().toLowerCase();
 
-			const info = pinToInfo[personPin];
-			const matchDept =
-				selectedDepartamento === 'Todos' ||
-				info.departamento === selectedDepartamento;
-			const matchSchedule =
-				selectedHorario === 'Todos' ||
-				`${info.horarioEntrada} - ${info.horarioSalida}` === selectedHorario;
+		return people
+			.filter((personName) => {
+				const personPin = Object.keys(pinToInfo).find(
+					(pin) => pinToInfo[pin].name === personName
+				);
+				if (!personPin) return false;
 
-			return matchDept && matchSchedule;
-		});
-	}, [people, pinToInfo, selectedDepartamento, selectedHorario]);
+				const info = pinToInfo[personPin];
+
+				const matchDept =
+					selectedDepartamento === 'Todos' ||
+					info.departamento === selectedDepartamento;
+
+				const matchSchedule =
+					selectedHorario === 'Todos' ||
+					`${info.horarioEntrada} - ${info.horarioSalida}` === selectedHorario;
+
+				const matchQuery = !q || personName.toLowerCase().includes(q);
+
+				return matchDept && matchSchedule && matchQuery;
+			})
+			.sort((a, b) => a.localeCompare(b));
+	}, [people, pinToInfo, selectedDepartamento, selectedHorario, personQuery]);
 
 	// Si estás en vista individual y el seleccionado ya no existe, ajusta
 	useEffect(() => {
@@ -440,8 +463,12 @@ export default function CalendarPage() {
 	// Filtrar por mes (frontend)
 	// =========================
 	const filteredByMonth = useMemo(() => {
-		return processedByDay.filter((d) => d.date.startsWith(filterMonth));
-	}, [processedByDay, filterMonth]);
+		const byMonth = processedByDay.filter((d) =>
+			d.date.startsWith(filterMonth)
+		);
+		if (!dayFilter) return byMonth;
+		return byMonth.filter((d) => d.date === dayFilter);
+	}, [processedByDay, filterMonth, dayFilter]);
 
 	const stats = useMemo(() => {
 		return {
@@ -457,7 +484,7 @@ export default function CalendarPage() {
 			? Object.values(pinToInfo).find((p) => p.name === selectedPerson)
 			: undefined;
 
-	const isLoading = isLoadingCsv || isLoadingLogs;
+	const isLoading = isLoadingWorkers || isLoadingLogs;
 
 	// =========================
 	// UI
@@ -496,7 +523,8 @@ export default function CalendarPage() {
 						{isLoading && (
 							<div className='text-neutral-300 flex items-center gap-2 text-sm'>
 								<Clock size={18} className='text-red-500 animate-pulse' />
-								Cargando datos {isLoadingCsv ? '(CSV)' : ''}{' '}
+								Cargando datos {isLoadingWorkers ? '(Empleados)' : ''}{' '}
+								{isLoadingLogs ? '(Logs)' : ''}...
 								{isLoadingLogs ? '(Logs)' : ''}...
 							</div>
 						)}
@@ -510,54 +538,72 @@ export default function CalendarPage() {
 				)}
 
 				{/* View Type Toggle */}
-				<div className='bg-neutral-900 rounded-xl border border-neutral-800 p-4 sm:p-6'>
-					<div className='flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-4'>
-						<div className='flex items-center gap-2 text-neutral-300 font-medium'>
-							<Filter className='text-red-500' size={20} />
-							<span className='text-sm sm:text-base'>Tipo de Vista:</span>
+				<div className='relative overflow-hidden rounded-2xl border border-neutral-800/60 bg-neutral-950/40 backdrop-blur-sm p-3 sm:p-4 shadow-lg'>
+					{/* glow mínimo */}
+					<div className='pointer-events-none absolute -top-24 -right-24 h-44 w-44 rounded-full bg-red-600/5 blur-3xl' />
+
+					{/* Header */}
+					<div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3'>
+						<div className='flex items-center gap-2 text-neutral-300'>
+							<div className='h-9 w-9 rounded-xl border border-neutral-800 bg-neutral-900/50 flex items-center justify-center'>
+								<Filter className='text-red-500' size={16} />
+							</div>
+							<div className='min-w-0'>
+								<div className='text-white font-semibold leading-tight'>
+									Filtros
+								</div>
+								<div className='text-[11px] text-neutral-500 truncate'>
+									Ajusta vista y criterios de consulta
+								</div>
+							</div>
 						</div>
-						<div className='flex gap-2'>
+
+						{/* Segmented control */}
+						<div className='inline-flex rounded-xl border border-neutral-800 bg-black/30 p-1 self-start sm:self-auto'>
 							<button
 								onClick={() => setViewType('department')}
-								className={`flex-1 sm:flex-none px-4 py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 text-sm font-medium ${
+								className={[
+									'px-3 py-1.5 rounded-lg transition flex items-center gap-2 text-xs sm:text-sm',
 									viewType === 'department'
-										? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
-										: 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white'
-								}`}>
-								<Building2 size={18} />
+										? 'bg-white/10 text-white border border-neutral-700/60'
+										: 'text-neutral-400 hover:text-white hover:bg-white/5',
+								].join(' ')}>
+								<Building2 size={16} />
 								<span>Departamento</span>
 							</button>
+
 							<button
 								onClick={() => setViewType('individual')}
-								className={`flex-1 sm:flex-none px-4 py-2.5 rounded-lg transition-all flex items-center justify-center gap-2 text-sm font-medium ${
+								className={[
+									'px-3 py-1.5 rounded-lg transition flex items-center gap-2 text-xs sm:text-sm',
 									viewType === 'individual'
-										? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
-										: 'bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white'
-								}`}>
-								<Users size={18} />
+										? 'bg-white/10 text-white border border-neutral-700/60'
+										: 'text-neutral-400 hover:text-white hover:bg-white/5',
+								].join(' ')}>
+								<Users size={16} />
 								<span>Individual</span>
 							</button>
 						</div>
 					</div>
 
-					{/* Filters Grid */}
-					<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
+					{/* Grid */}
+					<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3'>
 						{/* Department Filter */}
 						<div>
-							<label className='block text-sm font-medium text-neutral-300 mb-2 flex items-center gap-2'>
-								<Building2 size={16} className='text-red-500' />
+							<label className='block text-xs font-medium text-neutral-300 mb-1.5 flex items-center gap-2'>
+								<Building2 size={14} className='text-red-500' />
 								Departamento
 							</label>
 							<select
 								value={selectedDepartamento}
 								onChange={(e) => {
 									setSelectedDepartamento(e.target.value);
-									// Auto-reset persona cuando cambia departamento
 									if (viewType === 'individual' && filteredPeople.length > 0) {
 										setSelectedPerson(filteredPeople[0]);
 									}
 								}}
-								className='w-full px-4 py-2.5 bg-black border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all'>
+								className='w-full px-3 py-2 bg-black/40 border border-neutral-800 rounded-xl text-white text-sm
+focus:outline-none focus:ring-2 focus:ring-red-600/40 focus:border-red-600/40 transition'>
 								{departamentos.map((d) => (
 									<option key={d} value={d}>
 										{d}
@@ -568,20 +614,20 @@ export default function CalendarPage() {
 
 						{/* Schedule Filter */}
 						<div>
-							<label className='block text-sm font-medium text-neutral-300 mb-2 flex items-center gap-2'>
-								<Clock size={16} className='text-red-500' />
+							<label className='block text-xs font-medium text-neutral-300 mb-1.5 flex items-center gap-2'>
+								<Clock size={14} className='text-red-500' />
 								Horario
 							</label>
 							<select
 								value={selectedHorario}
 								onChange={(e) => {
 									setSelectedHorario(e.target.value);
-									// Auto-reset persona cuando cambia horario
 									if (viewType === 'individual' && filteredPeople.length > 0) {
 										setSelectedPerson(filteredPeople[0]);
 									}
 								}}
-								className='w-full px-4 py-2.5 bg-black border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all'>
+								className='w-full px-3 py-2 bg-black/40 border border-neutral-800 rounded-xl text-white text-sm
+focus:outline-none focus:ring-2 focus:ring-red-600/40 focus:border-red-600/40 transition'>
 								{horarios.map((h) => (
 									<option key={h} value={h}>
 										{h}
@@ -590,38 +636,134 @@ export default function CalendarPage() {
 							</select>
 						</div>
 
-						{/* Person Selector - Only visible in individual view */}
+						{/* Person Selector - Only in individual view */}
 						{viewType === 'individual' && (
-							<div>
-								<label className='block text-sm font-medium text-neutral-300 mb-2 flex items-center gap-2'>
-									<Users size={16} className='text-red-500' />
-									Empleado
+							<div ref={personWrapRef} className='relative'>
+								<label className='block text-xs font-medium text-neutral-300 mb-1.5 flex items-center gap-2'>
+									<Users size={14} className='text-red-500' />
+									Empleado (buscar)
 								</label>
-								<select
-									value={selectedPerson}
-									onChange={(e) => setSelectedPerson(e.target.value)}
-									className='w-full px-4 py-2.5 bg-black border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all'>
-									{filteredPeople.map((p) => (
-										<option key={p} value={p}>
-											{p}
-										</option>
-									))}
-								</select>
+
+								<input
+									ref={personInputRef}
+									value={personQuery}
+									onChange={(e) => {
+										setPersonQuery(e.target.value);
+										setIsPersonOpen(true);
+									}}
+									onFocus={() => setIsPersonOpen(true)}
+									placeholder='Escribe un nombre...'
+									className='w-full px-3 py-2 bg-black/40 border border-neutral-800 rounded-xl text-white text-sm
+focus:outline-none focus:ring-2 focus:ring-red-600/40 focus:border-red-600/40 transition'
+								/>
+
+								{/* POPUP */}
+								{isPersonOpen &&
+									(personQuery.trim().length > 0 ||
+										filteredPeople.length > 0) && (
+										<div className='absolute z-50 mt-2 w-full max-h-52 overflow-y-auto rounded-xl border border-neutral-800 bg-black/85 backdrop-blur-sm shadow-2xl'>
+											{filteredPeople.length === 0 ? (
+												<div className='px-3 py-2 text-xs text-neutral-500'>
+													Sin resultados
+												</div>
+											) : (
+												filteredPeople.slice(0, 50).map((p) => (
+													<button
+														key={p}
+														type='button'
+														onClick={() => {
+															setSelectedPerson(p);
+															setPersonQuery(p);
+															setIsPersonOpen(false);
+															personInputRef.current?.blur();
+														}}
+														className={[
+															'w-full text-left px-3 py-2 text-sm transition-colors',
+															selectedPerson === p
+																? 'bg-white/10 text-white'
+																: 'text-neutral-300 hover:bg-white/5',
+														].join(' ')}>
+														{p}
+													</button>
+												))
+											)}
+										</div>
+									)}
 							</div>
 						)}
 
 						{/* Month Filter */}
-						<div>
-							<label className='block text-sm font-medium text-neutral-300 mb-2 flex items-center gap-2'>
-								<Calendar size={16} className='text-red-500' />
+						<div className='relative'>
+							<label className='block text-xs font-medium text-neutral-300 mb-1.5 flex items-center gap-2'>
+								<Calendar size={14} className='text-red-500' />
 								Mes
 							</label>
-							<input
-								type='month'
-								value={filterMonth}
-								onChange={(e) => setFilterMonth(e.target.value)}
-								className='w-full px-4 py-2.5 bg-black border border-neutral-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all'
-							/>
+
+							<div className='relative'>
+								<input
+									ref={monthInputRef}
+									type='month'
+									value={filterMonth}
+									onChange={(e) => setFilterMonth(e.target.value)}
+									className='w-full px-3 py-2 pr-10 bg-black/40 border border-neutral-800 rounded-xl text-white text-sm
+focus:outline-none focus:ring-2 focus:ring-red-600/40 focus:border-red-600/40 transition cursor-pointer hover:border-neutral-700'
+								/>
+
+								{/* ✅ ahora sí clickeable */}
+								<button
+									type='button'
+									onClick={() => (monthInputRef.current as any)?.showPicker?.()}
+									className='absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg border border-neutral-800 bg-neutral-900/40
+hover:bg-neutral-800/60 transition flex items-center justify-center'
+									aria-label='Abrir selector de mes'>
+									<Calendar
+										size={16}
+										className='text-neutral-300 hover:text-red-400'
+									/>
+								</button>
+							</div>
+						</div>
+
+						{/* Day Filter */}
+						<div className='relative'>
+							<label className='block text-xs font-medium text-neutral-300 mb-1.5 flex items-center gap-2'>
+								<Calendar size={14} className='text-red-500' />
+								Día (opcional)
+							</label>
+
+							<div className='relative'>
+								<input
+									ref={dayInputRef}
+									type='date'
+									value={dayFilter}
+									onChange={(e) => setDayFilter(e.target.value)}
+									className='w-full px-3 py-2 pr-10 bg-black/40 border border-neutral-800 rounded-xl text-white text-sm
+focus:outline-none focus:ring-2 focus:ring-red-600/40 focus:border-red-600/40 transition cursor-pointer hover:border-neutral-700'
+								/>
+
+								{/* ✅ ahora sí clickeable */}
+								<button
+									type='button'
+									onClick={() => (dayInputRef.current as any)?.showPicker?.()}
+									className='absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg border border-neutral-800 bg-neutral-900/40
+hover:bg-neutral-800/60 transition flex items-center justify-center'
+									aria-label='Abrir selector de día'>
+									<Calendar
+										size={16}
+										className='text-neutral-300 hover:text-red-400'
+									/>
+								</button>
+							</div>
+
+							{dayFilter && (
+								<button
+									type='button'
+									onClick={() => setDayFilter('')}
+									className='mt-2 text-[11px] text-neutral-500 hover:text-red-400 transition-colors flex items-center gap-1'>
+									<XCircle size={12} />
+									Limpiar día
+								</button>
+							)}
 						</div>
 					</div>
 				</div>
