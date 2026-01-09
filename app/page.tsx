@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import LogoLoader from '@/components/ui/logoLoader';
 import {
 	Users,
@@ -15,6 +16,7 @@ import {
 	Building2,
 	BarChart3,
 	CalendarDays,
+	Pencil,
 } from 'lucide-react';
 
 type WorkerRow = {
@@ -604,7 +606,7 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 				<div className='grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4'>
 					<div className='bg-gradient-to-br from-neutral-900/80 to-neutral-800/50 backdrop-blur-sm rounded-xl border border-neutral-700 p-4 shadow-lg hover:border-neutral-600 transition-all'>
 						<div className='flex items-center justify-between mb-2'>
-							<div className='p-2 bg-white/10 rounded-lg'>
+							<div className='p-2 bg-black/10 rounded-lg'>
 								<Users className='text-white' size={20} />
 							</div>
 							<div className='text-right'>
@@ -804,6 +806,9 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 												<th className='text-right px-3 py-2 whitespace-nowrap'>
 													Estatus
 												</th>
+												<th className='text-right px-3 py-2 whitespace-nowrap'>
+													Editar
+												</th>
 											</tr>
 										</thead>
 
@@ -857,6 +862,15 @@ hover:bg-neutral-800/80 transition flex items-center justify-center'
 																A tiempo
 															</span>
 														)}
+													</td>
+
+													<td className='px-3 py-2 text-right whitespace-nowrap'>
+														<Link
+															href={`/personal/${r.pin}`}
+															className='inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-black/80 border border-neutral-800 hover:bg-neutral-800 hover:border-red-600/50 transition-all'>
+															<Pencil size={14} />
+															Editar
+														</Link>
 													</td>
 												</tr>
 											))}
