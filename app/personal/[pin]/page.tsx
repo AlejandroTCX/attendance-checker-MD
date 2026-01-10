@@ -152,6 +152,9 @@ export default function PersonalEditPage() {
 	const [isSaving, setIsSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
+	const [puestos, setPuestos] = useState<string[]>([]);
+	const [departamentos, setDepartamentos] = useState<string[]>([]);
+
 	const [original, setOriginal] = useState<Empleado | null>(null);
 	const [form, setForm] = useState<ReturnType<typeof normalizeEmpleado> | null>(
 		null
@@ -179,6 +182,26 @@ export default function PersonalEditPage() {
 		load();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pin]);
+	useEffect(() => {
+		const loadOptions = async () => {
+			try {
+				const [rPuestos, rDeptos] = await Promise.all([
+					fetch('/api/workers/options/puestos'),
+					fetch('/api/workers/options/departamentos'),
+				]);
+
+				const jPuestos = await rPuestos.json();
+				const jDeptos = await rDeptos.json();
+
+				if (rPuestos.ok) setPuestos(jPuestos.puestos ?? []);
+				if (rDeptos.ok) setDepartamentos(jDeptos.departamentos ?? []);
+			} catch {
+				// si falla no bloqueamos la pantalla, solo no habrá opciones
+			}
+		};
+
+		loadOptions();
+	}, []);
 
 	const normalizedOriginal = useMemo(
 		() => normalizeEmpleado(original),
@@ -261,7 +284,7 @@ export default function PersonalEditPage() {
 			<div className='sticky top-0 z-30 border-b border-neutral-800 bg-black/70 backdrop-blur'>
 				<div className='max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3'>
 					<button
-						onClick={() => router.push('/')}
+						onClick={() => router.push('/personal')}
 						className='inline-flex items-center gap-2 text-neutral-300 hover:text-white transition'>
 						<ArrowLeft size={18} /> Volver
 					</button>
@@ -354,25 +377,51 @@ export default function PersonalEditPage() {
 						<Field
 							label='Puesto'
 							icon={<Briefcase size={16} className='text-red-500' />}>
-							<input
+							<select
 								value={form.puesto}
 								onChange={(e) => setForm({ ...form, puesto: e.target.value })}
 								className='w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 text-white
-                           focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500 transition'
-							/>
+               focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500 transition'>
+								<option value=''>— Selecciona puesto —</option>
+								{puestos.map((p) => (
+									<option key={p} value={p}>
+										{p}
+									</option>
+								))}
+							</select>
+
+							{/* opcional: si el valor actual no existe en opciones, lo mostramos */}
+							{form.puesto && !puestos.includes(form.puesto) ? (
+								<div className='text-xs text-amber-300 mt-2'>
+									Aviso: este puesto no existe en la lista actual.
+								</div>
+							) : null}
 						</Field>
 
 						<Field
 							label='Departamento'
 							icon={<Building2 size={16} className='text-red-500' />}>
-							<input
+							<select
 								value={form.departamento}
 								onChange={(e) =>
 									setForm({ ...form, departamento: e.target.value })
 								}
 								className='w-full bg-black border border-neutral-800 rounded-xl px-4 py-3 text-white
-                           focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500 transition'
-							/>
+               focus:outline-none focus:ring-2 focus:ring-red-500/60 focus:border-red-500 transition'>
+								<option value=''>— Selecciona departamento —</option>
+								{departamentos.map((d) => (
+									<option key={d} value={d}>
+										{d}
+									</option>
+								))}
+							</select>
+
+							{form.departamento &&
+							!departamentos.includes(form.departamento) ? (
+								<div className='text-xs text-amber-300 mt-2'>
+									Aviso: este departamento no existe en la lista actual.
+								</div>
+							) : null}
 						</Field>
 
 						<Field label='Razón social'>

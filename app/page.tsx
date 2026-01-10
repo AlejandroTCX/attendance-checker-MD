@@ -512,7 +512,7 @@ export default function Dashboard() {
 			entrada: r.entryTime,
 			salida: r.exitTime || '—',
 			diferencia_min: r.status === 'MISSING' ? '' : r.diffMinutes,
-			estatus:
+			Llegada:
 				r.status === 'MISSING' ? 'FALTA' : r.isLate ? 'RETARDO' : 'A TIEMPO',
 		}));
 
