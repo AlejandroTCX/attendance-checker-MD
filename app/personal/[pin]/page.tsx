@@ -284,7 +284,13 @@ export default function PersonalEditPage() {
 			<div className='sticky top-0 z-30 border-b border-neutral-800 bg-black/70 backdrop-blur'>
 				<div className='max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3'>
 					<button
-						onClick={() => router.push('/personal')}
+						onClick={() => {
+							if (window.history.length > 1) {
+								router.back();
+							} else {
+								router.push('/personal'); // fallback seguro
+							}
+						}}
 						className='inline-flex items-center gap-2 text-neutral-300 hover:text-white transition'>
 						<ArrowLeft size={18} /> Volver
 					</button>
